@@ -6,7 +6,7 @@
 <meta name="robots" content="noindex">
 <meta name="theme-color" content="#ECEAE5">
 <!-- built 2026-09-19 from tt-match-analyst.html -->
-<title>桌球對戰記錄簿</title>
+<title>再來一顆｜桌球逐分復盤</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500&family=Inter:wght@400;500&family=JetBrains+Mono:wght@400;500&display=swap">
 <style>
 :root{
@@ -42,6 +42,8 @@ a{color:var(--pp-accent)}
 .top-in{height:100%;padding:0 16px;display:flex;align-items:center;gap:20px}
 .top h1{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .top h1 span{color:var(--pp-ink-sub);font-weight:400;margin-left:10px;font-size:13px}
+.top h1 .sub{margin-left:8px;padding-left:8px;border-left:var(--bw) solid var(--pp-line-strong);font-size:13px;color:var(--pp-ink-sub)}
+@media(max-width:600px){.top h1 .sub{display:none}}
 .tabs{display:flex;gap:4px}
 .tab{background:none;border:var(--bw) solid transparent;border-radius:var(--r-ctl);padding:6px 14px;cursor:pointer;color:var(--pp-ink-sub)}
 .tab[aria-selected="true"]{background:var(--pp-bg-card);border-color:var(--pp-line-strong);color:var(--pp-ink)}
@@ -289,7 +291,7 @@ textarea.io{width:100%;min-height:160px;font-family:var(--pp-font-mono);font-siz
 </style>
 
 <header class="top"><div class="top-in">
-  <h1>桌球對戰記錄簿 <span id="matchTitleTop">未命名比賽</span></h1>
+  <h1>再來一顆<span class="sub">桌球逐分復盤</span> <span id="matchTitleTop">未命名比賽</span></h1>
 </div></header>
 
 <main class="work">
@@ -1603,7 +1605,7 @@ function exportHighlightScript(){
   if (!clips.length){ toast('沒有可剪的好球'); return; }
   const src = videoName || 'match.mp4', stem = fileStem();
   const ext = (['mp4','mov','m4v','webm','mkv'].find(e => src.toLowerCase().endsWith('.' + e))) || 'mp4';   // -c copy 不換容器，輸出副檔名跟著來源
-  const L = ['#!/usr/bin/env bash', `# 桌球對戰記錄簿：好球集剪輯腳本（${stem}）。`, `# 用法：bash ${stem}-highlights.sh "影片路徑"   （不給路徑就用 ${src}）`,
+  const L = ['#!/usr/bin/env bash', `# 再來一顆｜桌球逐分復盤：好球集剪輯腳本（${stem}）。`, `# 用法：bash ${stem}-highlights.sh "影片路徑"   （不給路徑就用 ${src}）`,
     '# 預設不重新編碼（-c copy）：幾秒完成、畫質無損，但切點會靠到最近的關鍵幀，每段開頭可能多出零點幾秒到幾秒。',
     `# 要精準切點，改成：PRECISE=1 bash ${stem}-highlights.sh "影片路徑"   → 重新編碼為 H.264／AAC 的 MP4，時間較久。`,
     '# ffmpeg 來源：系統的（brew install ffmpeg）或 pip 套件（python3 -m pip install --user imageio-ffmpeg），腳本會自己找。',
