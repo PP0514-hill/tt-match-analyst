@@ -1505,11 +1505,19 @@ function exportHighlightScript(){
   const d = derive(); const clips = highlightClips(d.rows);
   if (!clips.length){ toast('沒有可剪的好球'); return; }
   const src = videoName || 'match.mp4', stem = fileStem();
-  const L = ['#!/usr/bin/env bash', `# 桌球對戰記錄簿：好球集剪輯腳本（${stem}）。需要 ffmpeg。`, `# 用法：bash ${stem}-highlights.sh "影片路徑"   （不給路徑就用 ${src}）`,
-    '# 預設 -c copy 不重新編碼：快、無損，但切點會靠到最近的關鍵幀，片段開頭可能多出零點幾秒。要精準切點，把兩行 "-c copy" 改成 "-c:v libx264 -c:a aac"。',
-    'set -e', `SRC="\${1:-${src}}"`, `OUT="${stem}-highlights.mp4"`, 'TMP="$(mktemp -d)"'];
-  clips.forEach((c, i) => L.push(`ffmpeg -y -loglevel error -ss ${c.start.toFixed(2)} -to ${c.end.toFixed(2)} -i "$SRC" -c copy -avoid_negative_ts make_zero "$TMP/clip-${String(i+1).padStart(2,'0')}.mp4"   # ${c.rows.map(r => `第${r.game}局 ${r.score_me}–${r.score_op}`).join('、')}`));
-  L.push('for f in "$TMP"/clip-*.mp4; do printf "file \'%s\'\\n" "$f"; done > "$TMP/list.txt"', 'ffmpeg -y -loglevel error -f concat -safe 0 -i "$TMP/list.txt" -c copy "$OUT"', 'rm -rf "$TMP"', 'echo "→ $OUT"');
+  const ext = (['mp4','mov','m4v','webm','mkv'].find(e => src.toLowerCase().endsWith('.' + e))) || 'mp4';   // -c copy 不換容器，輸出副檔名跟著來源
+  const L = ['#!/usr/bin/env bash', `# 桌球對戰記錄簿：好球集剪輯腳本（${stem}）。`, `# 用法：bash ${stem}-highlights.sh "影片路徑"   （不給路徑就用 ${src}）`,
+    '# 預設不重新編碼（-c copy）：幾秒完成、畫質無損，但切點會靠到最近的關鍵幀，每段開頭可能多出零點幾秒到幾秒。',
+    `# 要精準切點，改成：PRECISE=1 bash ${stem}-highlights.sh "影片路徑"   → 重新編碼為 H.264／AAC 的 MP4，時間較久。`,
+    '# ffmpeg 來源：系統的（brew install ffmpeg）或 pip 套件（python3 -m pip install --user imageio-ffmpeg），腳本會自己找。',
+    'set -e', `SRC="\${1:-${src}}"`, 'TMP="$(mktemp -d)"',
+    'FF="$(command -v ffmpeg || true)"',
+    '[ -z "$FF" ] && FF="$(python3 -c \'import imageio_ffmpeg;print(imageio_ffmpeg.get_ffmpeg_exe())\' 2>/dev/null || true)"',
+    '[ -z "$FF" ] && { echo "找不到 ffmpeg。擇一安裝：python3 -m pip install --user imageio-ffmpeg   或   brew install ffmpeg"; exit 1; }',
+    `if [ "\${PRECISE:-0}" = "1" ]; then EXT="mp4"; CODEC="-c:v libx264 -preset veryfast -crf 20 -pix_fmt yuv420p -c:a aac -movflags +faststart"; else EXT="${ext}"; CODEC="-c copy -avoid_negative_ts make_zero"; fi`,
+    `OUT="${stem}-highlights.$EXT"`];
+  clips.forEach((c, i) => L.push(`"$FF" -y -loglevel error -ss ${c.start.toFixed(2)} -to ${c.end.toFixed(2)} -i "$SRC" $CODEC "$TMP/clip-${String(i+1).padStart(2,'0')}.$EXT"   # ${c.rows.map(r => `第${r.game}局 ${r.score_me}–${r.score_op}`).join('、')}`));
+  L.push(`for f in "$TMP"/clip-*."$EXT"; do printf "file '%s'\\n" "$f"; done > "$TMP/list.txt"`, '"$FF" -y -loglevel error -f concat -safe 0 -i "$TMP/list.txt" -c copy "$OUT"', 'rm -rf "$TMP"', 'echo "→ $OUT"');
   offerDownload(stem + '-highlights.sh', L.join('\n') + '\n');
 }
 $('btnHlVideo').addEventListener('click', exportHighlightVideo);
