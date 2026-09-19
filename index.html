@@ -1291,7 +1291,7 @@ function saveEdit(){
 function editBox(id, label, value, placeholder){
   const wrap = document.createElement('label'); wrap.textContent = label;
   const inp = document.createElement('input'); inp.type = 'text'; inp.id = id; inp.value = value || ''; inp.placeholder = placeholder; inp.autocomplete = 'off';
-  inp.addEventListener('keydown', e => { if (e.key === 'Enter'){ e.preventDefault(); saveEdit(); } else if (e.key === 'Escape'){ e.preventDefault(); cancelPending(); } e.stopPropagation(); });
+  inp.addEventListener('keydown', e => { e.stopPropagation(); if (imeBusy(e)) return; if (e.key === 'Enter'){ e.preventDefault(); saveEdit(); } else if (e.key === 'Escape'){ e.preventDefault(); cancelPending(); } });
   wrap.append(inp); return wrap;
 }
 function submitText(value){
@@ -1346,13 +1346,20 @@ function handleKey(e){
 }
 
 /* ---------- render ---------- */
+/* 中文輸入法：選字的 Enter／Esc 不能當成送出或取消。
+   Chrome：組字中的 keydown 帶 isComposing／keyCode 229；Safari：選字的 Enter 會在 compositionend 之後才到，所以組字結束後 120ms 內的 Enter 也放過。 */
+let imeComposing = false, imeEndAt = 0;
+document.addEventListener('compositionstart', () => { imeComposing = true; }, true);
+document.addEventListener('compositionend', () => { imeComposing = false; imeEndAt = performance.now(); }, true);
+const imeBusy = e => !!(e.isComposing || e.keyCode === 229 || imeComposing || (performance.now() - imeEndAt) < 120);
 function textBox(placeholder, value, hint){
   const wrap = document.createElement('div'); wrap.className = 'tbox';
   const inp = document.createElement('input'); inp.type = 'text'; inp.id = 'stepText'; inp.placeholder = placeholder; inp.value = value || ''; inp.autocomplete = 'off';
   inp.addEventListener('keydown', e => {
+    e.stopPropagation();
+    if (imeBusy(e)) return;   // 輸入法選字中：交給輸入法
     if (e.key === 'Enter'){ e.preventDefault(); inp.blur(); submitText(inp.value); }
     else if (e.key === 'Escape'){ e.preventDefault(); inp.blur(); skipText(); }
-    e.stopPropagation();
   });
   const h = document.createElement('div'); h.className = 'hint'; h.textContent = hint;
   wrap.append(inp, h);
@@ -1413,7 +1420,7 @@ function renderStep(){
       $('stepLabel').textContent = '備註（選填）';
       chips.push(chip(endLabel(pending.end_type, pending.winner, pending.server), true));
       q.textContent = '這一分的策略考量？';
-      ch.append(textBox('例：連兩顆長球後改短下旋，他站位已退', '', 'Enter 儲存並進下一分，Esc 略過'));
+      ch.append(textBox('例：連兩顆長球後改短下旋，他站位已退', '', 'Enter 儲存並進下一分，Esc 略過。輸入法選字的 Enter 不會送出'));
     }
     pend.append(chip(pending.star ? 'H 取消好球' : 'H 好球', false, toggleStar));
     pend.append(chip('Esc 取消', false, cancelPending));
