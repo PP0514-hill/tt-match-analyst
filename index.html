@@ -162,7 +162,13 @@ kbd{font-family:var(--pp-font-mono);font-size:12px;border:var(--bw) solid var(--
 .starbtn:hover{background:var(--pp-bg-card-sub);color:var(--pp-ink-sub)}
 .starbtn.on{color:var(--pp-accent)}
 @media(pointer:coarse){.starbtn{font-size:18px;padding:6px 8px}}
-.log .notecell{max-width:220px;overflow:hidden;text-overflow:ellipsis}
+.log .notecell{max-width:220px;overflow:hidden;text-overflow:ellipsis;cursor:text}
+.log .notecell:hover{text-decoration:underline dotted var(--pp-ink-hint)}
+.log .notecell:empty::before,.log .notecell.blank::before{content:'＋ 原因／備註';color:var(--pp-ink-hint)}
+.editbox{display:grid;gap:8px}
+.editbox label{font-size:12px;color:var(--pp-ink-sub);display:grid;gap:4px}
+.editbox input{width:100%;border:var(--bw) solid var(--pp-line-strong);border-radius:var(--r-ctl);padding:8px 10px;background:var(--pp-bg-card)}
+.editbox input:focus{border-color:var(--pp-accent)}
 .log .nt{color:var(--pp-ink-hint);margin-left:6px}
 .log .nt::before{content:"— "}
 .tbox input{width:100%;border:var(--bw) solid var(--pp-accent);border-radius:var(--r-ctl);padding:8px 10px;background:var(--pp-bg-card)}
@@ -194,7 +200,22 @@ svg text{font-family:var(--pp-font-mono);font-size:11px;fill:var(--pp-ink-sub)}
 .mtable th{background:var(--pp-bg-card-sub);font-weight:500;text-align:left;padding:6px 10px;border-bottom:var(--bw) solid var(--pp-line)}
 .mtable td{padding:6px 10px;border-bottom:var(--bw) solid var(--pp-line)}
 .note{font-size:13px;color:var(--pp-ink-sub);border-left:2px solid var(--pp-line-strong);padding-left:12px;margin-top:12px}
-h2.sec{font-size:13px;color:var(--pp-ink-sub);letter-spacing:.06em;margin-top:12px;padding-bottom:6px;border-bottom:var(--bw) solid var(--pp-line-strong)}
+details.sec{border-top:var(--bw) solid var(--pp-line-strong)}
+details.sec>summary{list-style:none;cursor:pointer;font-size:13px;color:var(--pp-ink-sub);letter-spacing:.06em;padding:12px 0;display:flex;align-items:center;gap:8px}
+details.sec>summary::-webkit-details-marker{display:none}
+details.sec>summary::before{content:"";width:0;height:0;border-left:5px solid var(--pp-ink-hint);border-top:4px solid transparent;border-bottom:4px solid transparent;transition:transform .15s}
+details.sec[open]>summary::before{transform:rotate(90deg)}
+details.sec>summary:hover{color:var(--pp-ink)}
+.sec-body{display:grid;gap:20px;padding-bottom:8px}
+.traj{display:grid;gap:14px}
+.traj .g{display:grid;grid-template-columns:96px minmax(0,1fr);gap:12px;align-items:center}
+.traj .g .t{font-size:13px;line-height:1.5}
+.traj .g .t .sc{font-family:var(--pp-font-mono);font-size:18px;font-weight:500;display:block}
+.traj .g .t .res{color:var(--pp-ink-sub);font-size:12px}
+.traj .g .t .res.win{color:var(--pp-accent-deep)}
+.traj svg{width:100%;height:auto;display:block}
+.traj svg text{font-size:10px}
+@media(max-width:600px){.traj .g{grid-template-columns:1fr}.traj .g .t{display:flex;gap:10px;align-items:baseline}.traj .g .t .sc{display:inline}}
 .insights{margin:12px 0 0;padding-left:1.4em;display:grid;gap:6px}
 .insights li{line-height:1.6}
 .insights li .where{color:var(--pp-ink-hint);font-size:13px;margin-left:6px}
@@ -321,7 +342,7 @@ textarea.io{width:100%;min-height:160px;font-family:var(--pp-font-mono);font-siz
       <span><kbd>Q</kbd> <kbd>W</kbd> <kbd>E</kbd></span><span>結束方式：主動得分／受迫失誤／非受迫失誤</span>
       <span><kbd>R</kbd> <kbd>T</kbd></span><span>發球得分（含對方吃發球）／發球失誤；依當分發球方自動判定可用哪一個</span>
       <span><kbd>Z</kbd> <kbd>X</kbd> <kbd>C</kbd> <kbd>V</kbd> <kbd>B</kbd></span><span>我方失誤原因：步法沒到／旋轉判斷錯／選擇太冒進／純執行失誤／其他（手寫）</span>
-      <span><kbd>N</kbd></span><span>替上一分加備註；我主動得分或發球得分後會自動問備註（Enter 略過）</span>
+      <span><kbd>N</kbd></span><span>編輯播放頭所在那一分的原因與備註（回頭看也能改）；逐分紀錄的「原因／備註」格直接點也可以。我主動得分或發球得分後會自動問備註（Enter 略過）</span>
       <span><kbd>H</kbd></span><span>標記好球：輸入中按下標記這一分；沒在輸入時標記播放頭所在的那一分（回頭看也能標），逐分紀錄每列前的 ★ 也可點；好球會進時間軸與分析頁的好球集，可一鍵剪成影片</span>
       <span><kbd>1</kbd>–<kbd>9</kbd> <kbd>0</kbd></span><span>拍數（0 ＝ 10 拍以上）；有擊球時間戳時自動帶入</span>
       <span><kbd>Space</kbd></span><span>播放／暫停</span>
@@ -420,6 +441,14 @@ textarea.io{width:100%;min-height:160px;font-family:var(--pp-font-mono);font-siz
         <textarea class="refl" id="refl-overall" data-key="overall" placeholder="看完整份分析之後，最想記住的一兩件事……"></textarea></div>
     </div>
 
+    <div class="card">
+      <div class="row" style="justify-content:space-between">
+        <h3>每一局怎麼走</h3>
+        <span class="cap">線在中線上方＝我領先；紅點＝關鍵分我得分、白點＝關鍵分失分；★＝好球。點任一分，影片跳過去</span>
+      </div>
+      <div id="trajWrap" style="margin-top:12px"></div>
+    </div>
+
     <div class="card" id="hlCard">
       <div class="row" style="justify-content:space-between">
         <h3>好球集 <span class="mono cap" id="hlCount">0</span></h3>
@@ -435,70 +464,66 @@ textarea.io{width:100%;min-height:160px;font-family:var(--pp-font-mono);font-siz
       <p class="cap" id="hlStatus" style="margin:10px 0 0">影片輸出是在瀏覽器裡把每段好球依序播放並錄下來，需要等片段總長度的時間，期間請別切換分頁。輸出 WebM，桌機 Chrome／Edge 可用；要 MP4 或無損剪輯，用 ffmpeg 腳本在電腦上跑。</p>
     </div>
 
-    <h2 class="sec">一、局與局之間</h2>
-    <div class="card">
-      <h3>局次總覽</h3>
-      <div style="overflow-x:auto;margin-top:12px"><table class="mtable" id="gamesTable"></table></div>
-      <div class="two" style="margin-top:20px">
-        <div><h3>大局階段</h3><div class="bars" id="seriesBars" style="margin-top:12px"></div>
-          <p class="cap" style="margin:10px 0 0">前半段＝前 ⌈局數／2⌉ 局；「領先局」指開局時大局比分領先。</p></div>
-        <div><h3>比分走勢（分差）</h3><div id="trajWrap" style="overflow-x:auto;margin-top:8px"></div>
-          <p class="cap" style="margin:6px 0 0">縱軸為我方領先分數；橫軸為第幾分。○● 為關鍵分。</p></div>
-      </div>
-      <div class="refl-wrap"><label class="cap" for="refl-games">心得：局與局之間</label>
-        <textarea class="refl" id="refl-games" data-key="games" placeholder="哪一局轉折？領先時和落後時打法有沒有不一樣？"></textarea></div>
-    </div>
-
-    <h2 class="sec">二、分是怎麼得、怎麼掉的</h2>
-    <div class="two">
-      <div class="card">
-        <h3>得分結構</h3>
-        <div class="bars" id="winBars" style="margin-top:12px"></div>
-      </div>
-      <div class="card">
-        <h3>失分結構</h3>
-        <div class="bars" id="lossBars" style="margin-top:12px"></div>
-      </div>
-    </div>
-    <div class="two">
-      <div class="card">
-        <h3>關鍵分 vs 一般分</h3>
-        <div class="bars" id="critBars" style="margin-top:12px"></div>
-        <p class="cap" style="margin:10px 0 0">關鍵分：任一方達局分減 1，或雙方皆達局分減 2 之後的每一分。</p>
-      </div>
-      <div class="card">
-        <h3>我方失誤原因 × 回合長度</h3>
-        <div style="overflow-x:auto;margin-top:12px"><table class="mtable" id="reasonRally"></table></div>
-        <p class="cap" style="margin:10px 0 0">短回合失誤多屬接發球或第三板；長回合失誤多與步法或耐心有關。</p>
-      </div>
-    </div>
-    <div class="card">
-      <div id="noteList" style="overflow-x:auto"></div>
-      <div class="refl-wrap" style="margin-top:0"><label class="cap" for="refl-points">心得：得失分</label>
-        <textarea class="refl" id="refl-points" data-key="points" placeholder="哪一種失誤最該先處理？發球輪與接發輪哪邊要加練？"></textarea></div>
-    </div>
-
-    <h2 class="sec">三、過程中的變化</h2>
-    <div class="two">
-      <div class="card">
-        <h3>連續失分</h3>
-        <div id="streaks" style="margin-top:12px"></div>
-      </div>
-      <div class="card">
-        <div class="row" style="justify-content:space-between">
-          <h3>行為代理指標（心態相關）</h3>
-          <span class="badge">行為統計，非心理狀態判定</span>
+    <details class="sec" id="sec-games" open>
+      <summary>一、局與局之間</summary>
+      <div class="sec-body">
+        <div class="card">
+          <h3>局次總覽</h3>
+          <div style="overflow-x:auto;margin-top:12px"><table class="mtable" id="gamesTable"></table></div>
+          <div style="margin-top:20px"><h3>大局階段</h3><div class="bars" id="seriesBars" style="margin-top:12px"></div>
+            <p class="cap" style="margin:10px 0 0">前半段＝前 ⌈局數／2⌉ 局；「領先局」指開局時大局比分領先。</p></div>
+          <div class="refl-wrap"><label class="cap" for="refl-games">心得：局與局之間</label>
+            <textarea class="refl" id="refl-games" data-key="games" placeholder="哪一局轉折？領先時和落後時打法有沒有不一樣？"></textarea></div>
         </div>
-        <div class="kpis" id="mindKpis" style="margin-top:12px"></div>
       </div>
-    </div>
-    <div class="card">
-      <h3>比賽階段漂移</h3>
-      <div style="overflow-x:auto;margin-top:12px"><table class="mtable" id="driftTable"></table></div>
-      <p class="note">這一區只描述「行為在比賽過程中怎麼變」，例如失分之後下一分的得分率，或後段「選擇太冒進」比例是否上升。它能提示值得回看的片段，不能證明當時的心理狀態。</p>
-      <div class="refl-wrap"><label class="cap" for="refl-mind">心得：心態與節奏</label>
-        <textarea class="refl" id="refl-mind" data-key="mind" placeholder="連續失分時當下在想什麼？有沒有可以固定下來的暫停或調整動作？"></textarea></div>
-    </div>
+    </details>
+
+    <details class="sec" id="sec-points">
+      <summary>二、分是怎麼得、怎麼掉的</summary>
+      <div class="sec-body">
+        <div class="two">
+          <div class="card"><h3>得分結構</h3><div class="bars" id="winBars" style="margin-top:12px"></div></div>
+          <div class="card"><h3>失分結構</h3><div class="bars" id="lossBars" style="margin-top:12px"></div></div>
+        </div>
+        <div class="two">
+          <div class="card">
+            <h3>關鍵分 vs 一般分</h3>
+            <div class="bars" id="critBars" style="margin-top:12px"></div>
+            <p class="cap" style="margin:10px 0 0">關鍵分：任一方達局分減 1，或雙方皆達局分減 2 之後的每一分。</p>
+          </div>
+          <div class="card">
+            <h3>我方失誤原因 × 回合長度</h3>
+            <div style="overflow-x:auto;margin-top:12px"><table class="mtable" id="reasonRally"></table></div>
+            <p class="cap" style="margin:10px 0 0">短回合失誤多屬接發球或第三板；長回合失誤多與步法或耐心有關。</p>
+          </div>
+        </div>
+        <div class="card">
+          <div id="noteList" style="overflow-x:auto"></div>
+          <div class="refl-wrap" style="margin-top:0"><label class="cap" for="refl-points">心得：得失分</label>
+            <textarea class="refl" id="refl-points" data-key="points" placeholder="哪一種失誤最該先處理？發球輪與接發輪哪邊要加練？"></textarea></div>
+        </div>
+      </div>
+    </details>
+
+    <details class="sec" id="sec-mind">
+      <summary>三、過程中的變化</summary>
+      <div class="sec-body">
+        <div class="two">
+          <div class="card"><h3>連續失分</h3><div id="streaks" style="margin-top:12px"></div></div>
+          <div class="card">
+            <div class="row" style="justify-content:space-between"><h3>行為代理指標（心態相關）</h3><span class="badge">行為統計，非心理狀態判定</span></div>
+            <div class="kpis" id="mindKpis" style="margin-top:12px"></div>
+          </div>
+        </div>
+        <div class="card">
+          <h3>比賽階段漂移</h3>
+          <div style="overflow-x:auto;margin-top:12px"><table class="mtable" id="driftTable"></table></div>
+          <p class="note">這一區只描述「行為在比賽過程中怎麼變」，例如失分之後下一分的得分率，或後段「選擇太冒進」比例是否上升。它能提示值得回看的片段，不能證明當時的心理狀態。</p>
+          <div class="refl-wrap"><label class="cap" for="refl-mind">心得：心態與節奏</label>
+            <textarea class="refl" id="refl-mind" data-key="mind" placeholder="連續失分時當下在想什麼？有沒有可以固定下來的暫停或調整動作？"></textarea></div>
+        </div>
+      </div>
+    </details>
   </div>
 </section>
 
@@ -1068,8 +1093,8 @@ function toggleStar(){
   setStar(starTargetIdx());
 }
 $('logBody').addEventListener('click', e => {
-  const b = e.target.closest('.starbtn'); if (!b) return;
-  e.stopPropagation(); setStar(+b.dataset.star);
+  const b = e.target.closest('.starbtn'); if (b){ e.stopPropagation(); setStar(+b.dataset.star); return; }
+  const c = e.target.closest('.notecell[data-edit]'); if (c){ e.stopPropagation(); editPoint(+c.dataset.edit); }
 }, true);
 function validEnds(p){
   // R（發球得分／吃發球）只在發球方贏時成立；T（發球失誤）只在發球方輸時成立
@@ -1121,19 +1146,29 @@ function toggleServer(){
   save(); renderAll(); toast(`第 ${d.game} 局首發球改為：${other(cur) === 'me' ? '我' : '對手'}`);
 }
 // N：替上一分補備註
-let noteTarget = null; // index into match.points
-function editLastNote(){
-  if (pending || !match.points.length) return;
-  noteTarget = match.points.length - 1; renderStep();
+let noteTarget = null; // index into match.points（編輯中的那一分）
+function editPoint(i){ if (pending || i == null || !match.points[i]) return; noteTarget = i; renderStep(); }
+function editLastNote(){ if (!match.points.length) return; editPoint(starTargetIdx()); }   // N：播放頭所在的分；在最後一分之後＝上一分
+function saveEdit(){
+  const i = noteTarget; if (i == null) return;
+  const p = match.points[i], row = derive().rows[i];
+  const rIn = $('stepReason'), nIn = $('stepText');
+  if (rIn && isMyError(p, row.server)){ const v = rIn.value.trim(); if (v) p.reason = v; else if (!Object.values(REASONS).includes(p.reason)) p.reason = null; }
+  if (nIn) p.note = nIn.value.trim();
+  noteTarget = null; save(); renderAll(); toast(`第 ${i+1} 分已更新`);
+}
+function editBox(id, label, value, placeholder){
+  const wrap = document.createElement('label'); wrap.textContent = label;
+  const inp = document.createElement('input'); inp.type = 'text'; inp.id = id; inp.value = value || ''; inp.placeholder = placeholder; inp.autocomplete = 'off';
+  inp.addEventListener('keydown', e => { if (e.key === 'Enter'){ e.preventDefault(); saveEdit(); } else if (e.key === 'Escape'){ e.preventDefault(); cancelPending(); } e.stopPropagation(); });
+  wrap.append(inp); return wrap;
 }
 function submitText(value){
   const v = value.trim(); bump();
   if (pending){
     if (pending.stage === 'reason_text'){ if (!v){ pending.stage = 'reason'; renderStep(); return; } pending.reason = v; commit(); return; }
     if (pending.stage === 'note'){ pending.note = v; commit(); return; }
-  } else if (noteTarget != null){
-    match.points[noteTarget].note = v; noteTarget = null; save(); renderAll(); toast(v ? '已加備註' : '已清除備註'); return;
-  }
+  } else if (noteTarget != null){ saveEdit(); return; }
 }
 function skipText(){
   if (pending && pending.stage === 'note'){ pending.note = ''; commit(); return; }
@@ -1198,10 +1233,19 @@ function renderStep(){
   const chips = [];
   if (rallyBuffer != null && !pending) chips.push(chip(`拍數 ${rallyBuffer}${rallyBuffer===10?'+':''}`, true));
   if (!pending && noteTarget != null){
-    const p = match.points[noteTarget];
-    $('stepLabel').textContent = `第 ${noteTarget+1} 分備註`;
-    q.textContent = endLabel(p.end_type, p.winner, derive().rows[noteTarget].server);
-    ch.append(textBox('例：反手位短下旋，等他擺短再搶攻', p.note, 'Enter 儲存，Esc 取消'));
+    const i = noteTarget, p = match.points[i], row = derive().rows[i];
+    $('stepLabel').textContent = `編輯第 ${i+1} 分`;
+    q.textContent = `第 ${row.game} 局 ${row.score_me}–${row.score_op}　${endLabel(p.end_type, p.winner, row.server)}`;
+    const box = document.createElement('div'); box.className = 'editbox';
+    if (isMyError(p, row.server)){
+      const rc = document.createElement('div'); rc.className = 'choices';
+      for (const [k,v] of Object.entries(REASONS)){ const b = choiceBtn(k, v, () => { p.reason = v; save(); renderAll(); renderStep(); }); if (p.reason === v) b.classList.add('sel'); rc.append(b); }
+      box.append(rc, editBox('stepReason', '其他原因（手寫，留空則沿用上面選的）', Object.values(REASONS).includes(p.reason) ? '' : (p.reason || ''), '例：對手側旋發球，回球出界'));
+    }
+    box.append(editBox('stepText', '備註', p.note, '例：反手位短下旋，等他擺短再搶攻'));
+    const h = document.createElement('div'); h.className = 'hint'; h.textContent = 'Enter 儲存，Esc 取消'; box.append(h);
+    ch.append(box);
+    pend.append(chip('Esc 取消', false, cancelPending));
   } else if (!pending){
     $('stepLabel').textContent = '這一分';
     q.innerHTML = '誰得分？ <kbd>A</kbd> 我　<kbd>L</kbd> 對手';
@@ -1289,7 +1333,7 @@ function renderBoard(){
     tr.dataset.idx = idx - 1; if (idx - 1 === curIdx) tr.classList.add('cur');
     tr.innerHTML = `<td><button type="button" class="starbtn${r.star?' on':''}" data-star="${idx-1}" title="${r.star?'取消好球':'標為好球'}" aria-pressed="${!!r.star}">★</button></td><td class="mono">${idx}</td><td class="mono">${r.game}</td><td class="mono">${r.score_me}–${r.score_op}${r.critical?' ·':''}</td>
       <td>${r.server==='me'?'我':'對'}</td><td class="${r.winner==='me'?'me':''}">${r.winner==='me'?'我':'對手'}</td>
-      <td class="mono">${r.rally==null?'—':(r.rally>=10?'10+':r.rally)}</td><td>${endLabel(r.end_type, r.winner, r.server)}</td><td class="notecell" title="${esc(r.note||'')}">${esc(r.reason||'')}${r.note?`<span class="nt">${esc(r.note)}</span>`:''}</td>
+      <td class="mono">${r.rally==null?'—':(r.rally>=10?'10+':r.rally)}</td><td>${endLabel(r.end_type, r.winner, r.server)}</td><td class="notecell${(r.reason||r.note)?'':' blank'}" data-edit="${idx-1}" title="${esc(r.note||'')}${r.note?'　':''}點擊編輯原因／備註">${esc(r.reason||'')}${r.note?`<span class="nt">${esc(r.note)}</span>`:''}</td>
       <td class="mono">${r.t_end==null?'—':fmtT(r.t_end)}</td>`;
     if (r.t_end != null){ tr.dataset.seek = pointStart(d.rows, idx-1); tr.title='跳到這一分'; }
     tb.append(tr);
@@ -1329,12 +1373,10 @@ function renderAnalysis(){
   const myErrOf = rs => rs.filter(r => r.winner==='op' && r.end_type!=='winner');
   const fixed = Object.values(REASONS);
   kp.append(
-    kpi(pct(won.length, rows.length), '總得分率', `${won.length}／${rows.length}`),
-    kpi(pct(srv.filter(r=>r.winner==='me').length, srv.length), '發球輪得分率', `${srv.length} 分`),
-    kpi(pct(rcv.filter(r=>r.winner==='me').length, rcv.length), '接發輪得分率', `${rcv.length} 分`),
+    kpi(pct(won.length, rows.length), '總得分率', `${won.length}／${rows.length} 分`),
+    kpi(`${pct(srv.filter(r=>r.winner==='me').length, srv.length)}／${pct(rcv.filter(r=>r.winner==='me').length, rcv.length)}`, '發球輪／接發輪得分率', `${srv.length} 分／${rcv.length} 分`),
     kpi(pct(crit.filter(r=>r.winner==='me').length, crit.length), '關鍵分得分率', `${crit.length} 分`),
-    kpi(rl.length ? (rl.reduce((s,r)=>s+r.rally,0)/rl.length).toFixed(1) : '—', '平均拍數', rl.length ? `${rl.length} 分有拍數` : '未記錄'),
-    kpi(pct(myErrOf(rows).length, lost.length), '失分中屬我方失誤', `${myErrOf(rows).length}／${lost.length}`),
+    kpi(pct(myErrOf(rows).length, lost.length), '失分中屬我方失誤', `${myErrOf(rows).length}／${lost.length}${rl.length ? `　平均 ${(rl.reduce((s,r)=>s+r.rally,0)/rl.length).toFixed(1)} 拍` : ''}`),
   );
 
   /* ---- 局次總覽與大局階段 ---- */
@@ -1351,14 +1393,14 @@ function renderAnalysis(){
     gInfo.push({g, rs, fin, state, decider, series:`${gm}–${go}`, last: rs[rs.length-1], errs, topReason});
     if (fin){ if (fin.winner==='me') gm++; else go++; }
   }
-  let gt = '<thead><tr><th>局</th><th>比分</th><th>開局大局</th><th>得分率</th><th>發球輪</th><th>接發輪</th><th>關鍵分</th><th>我方失誤占失分</th><th>平均拍數</th><th>主要失誤原因</th></tr></thead><tbody>';
+  let gt = '<thead><tr><th>局</th><th>比分</th><th>開局大局</th><th>得分率</th><th>發球輪 ／ 接發輪</th><th>關鍵分</th><th>失分中我方失誤</th><th>主要失誤原因</th></tr></thead><tbody>';
   for (const G of gInfo){
     const rs = G.rs, l = rs.filter(r=>r.winner==='op');
     const score = G.fin ? `${G.fin.me}–${G.fin.op}` : `${G.last.after_me}–${G.last.after_op}`;
     const gStart = rows.indexOf(rs[0]); const gSeek = pointStart(rows, gStart);
     gt += `<tr class="${G.fin?'':'live'}"${gSeek!=null?` data-seek="${gSeek}" title="跳到第 ${G.g} 局開頭"`:''}><td class="mono">${G.g}${G.decider?' 決勝':''}</td><td class="mono ${G.fin&&G.fin.winner==='me'?'win':''}">${score}${G.fin?'':' ·'}</td><td class="mono">${G.series} ${G.state}</td>` +
-      `<td class="mono">${pct(rs.filter(r=>r.winner==='me').length, rs.length)}</td><td class="mono">${pct(rs.filter(r=>r.server==='me'&&r.winner==='me').length, rs.filter(r=>r.server==='me').length)}</td><td class="mono">${pct(rs.filter(r=>r.server==='op'&&r.winner==='me').length, rs.filter(r=>r.server==='op').length)}</td>` +
-      `<td class="mono">${pct(rs.filter(r=>r.critical&&r.winner==='me').length, rs.filter(r=>r.critical).length)}</td><td class="mono">${pct(G.errs.length, l.length)}</td><td class="mono">${avgRally(rs)}</td><td>${G.topReason ? `${esc(G.topReason[0])} ${G.topReason[1]}` : '·'}</td></tr>`;
+      `<td class="mono">${pct(rs.filter(r=>r.winner==='me').length, rs.length)}</td><td class="mono">${pct(rs.filter(r=>r.server==='me'&&r.winner==='me').length, rs.filter(r=>r.server==='me').length)} ／ ${pct(rs.filter(r=>r.server==='op'&&r.winner==='me').length, rs.filter(r=>r.server==='op').length)}</td>` +
+      `<td class="mono">${pct(rs.filter(r=>r.critical&&r.winner==='me').length, rs.filter(r=>r.critical).length)}</td><td class="mono">${pct(G.errs.length, l.length)}</td><td>${G.topReason ? `${esc(G.topReason[0])} ${G.topReason[1]} 次` : '·'}</td></tr>`;
   }
   $('gamesTable').innerHTML = gt + '</tbody>';
   const nG = gInfo.length, halfN = Math.ceil(nG/2);
@@ -1600,29 +1642,39 @@ function bars(el, items){
   }
 }
 function drawTrajectory(rows, games){
-  const W = Math.max(520, rows.length*9 + 60), H = 220, padL = 34, padB = 22, padT = 12;
-  let maxAbs = 2; rows.forEach(r => maxAbs = Math.max(maxAbs, Math.abs(r.after_me - r.after_op)));
-  const y = v => padT + (H-padT-padB)/2 - v * ((H-padT-padB)/2) / maxAbs;
-  const x = i => padL + (i+1) * (W-padL-10) / (rows.length+1);
-  let s = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="比分走勢">`;
-  s += `<line x1="${padL}" x2="${W-6}" y1="${y(0)}" y2="${y(0)}" stroke="#C3BFB6" stroke-width="1"/>`;
-  [maxAbs, Math.round(maxAbs/2), -Math.round(maxAbs/2), -maxAbs].forEach(v => { if (v) s += `<text x="${padL-6}" y="${y(v)+4}" text-anchor="end">${v>0?'+':''}${v}</text><line x1="${padL}" x2="${W-6}" y1="${y(v)}" y2="${y(v)}" stroke="#ECEAE5" stroke-width="1"/>`; });
-  s += `<text x="${padL-6}" y="${y(0)+4}" text-anchor="end">0</text>`;
-  // game separators
-  let gi = 0;
-  rows.forEach((r,i) => { if (i && r.game !== rows[i-1].game){ const xx = (x(i-1)+x(i))/2; s += `<line x1="${xx}" x2="${xx}" y1="${padT}" y2="${H-padB}" stroke="#D8D5CE" stroke-width="1"/>`; } });
-  // game labels
-  const starts = {}; rows.forEach((r,i)=>{ if(!(r.game in starts)) starts[r.game]=i; });
-  Object.entries(starts).forEach(([g,i]) => { const end = rows.findLastIndex(r=>+r.game===+g); s += `<text x="${(x(i)+x(end))/2}" y="${H-6}" text-anchor="middle">第 ${g} 局${games.find(G=>G.game===+g)?` ${games.find(G=>G.game===+g).me}–${games.find(G=>G.game===+g).op}`:''}</text>`; });
-  // path per game
-  let path = ''; let prevG = null;
-  rows.forEach((r,i) => { const v = r.after_me - r.after_op; if (r.game !== prevG){ path += `M${x(i)-((W-padL-10)/(rows.length+1))} ${y(0)} L${x(i)} ${y(v)}`; prevG = r.game; } else path += ` L${x(i)} ${y(v)}`; });
-  s += `<path d="${path}" fill="none" stroke="#232220" stroke-width="1.5" stroke-linejoin="round"/>`;
-  rows.forEach((r,i) => { if (r.critical) s += `<circle cx="${x(i)}" cy="${y(r.after_me-r.after_op)}" r="2.6" fill="${r.winner==='me'?'#9C3D2C':'#FFFFFF'}" stroke="#9C3D2C" stroke-width="1"/>`; });
-  // 每一分一個透明熱區，點了影片跳到那一分
-  rows.forEach((r,i) => { const sk = pointStart(rows, i); if (sk != null) s += `<circle cx="${x(i)}" cy="${y(r.after_me-r.after_op)}" r="5" fill="transparent" stroke="transparent" data-seek="${sk}"><title>第 ${r.game} 局 ${r.score_me}–${r.score_op}　${r.winner==='me'?'我得分':'對手得分'}</title></circle>`; });
-  s += `<text x="${W-6}" y="${padT+8}" text-anchor="end">○● 關鍵分（● 我得分）</text>`;
-  $('trajWrap').innerHTML = s + '</svg>';
+  // 每一局一張小圖：橫軸第幾分、縱軸分差（我－對手）。上方紅色區＝我領先、下方灰色區＝落後。
+  const wrap = $('trajWrap'); wrap.innerHTML = '';
+  const byGame = new Map(); rows.forEach((r, i) => { if (!byGame.has(r.game)) byGame.set(r.game, []); byGame.get(r.game).push([r, i]); });
+  const T = gameTo(); let maxAbs = 3; rows.forEach(r => maxAbs = Math.max(maxAbs, Math.abs(r.after_me - r.after_op)));
+  const W = 640, H = 96, padL = 26, padR = 10, padT = 10, padB = 10, mid = padT + (H - padT - padB) / 2, amp = (H - padT - padB) / 2 - 4;
+  const y = v => mid - v * amp / maxAbs;
+  const box = document.createElement('div'); box.className = 'traj';
+  for (const [g, list] of byGame){
+    const n = list.length, last = list[n-1][0], fin = games.find(G => G.game === +g);
+    const x = i => padL + (i + 0.5) * (W - padL - padR) / Math.max(n, T);   // 以局分為最小寬度，短局不會被拉長
+    const pts = list.map(([r, i], k) => [x(k), y(r.after_me - r.after_op), r, i]);
+    const line = [[padL, mid], ...pts.map(p => [p[0], p[1]])].map(p => `${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' ');
+    const area = `M${padL},${mid} ` + pts.map(p => `L${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' ') + ` L${pts[pts.length-1][0].toFixed(1)},${mid} Z`;
+    let sv = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="第 ${g} 局走勢">`;
+    sv += `<defs><clipPath id="cu${g}"><rect x="0" y="0" width="${W}" height="${mid}"/></clipPath><clipPath id="cd${g}"><rect x="0" y="${mid}" width="${W}" height="${H-mid}"/></clipPath></defs>`;
+    sv += `<path d="${area}" fill="#9C3D2C" fill-opacity=".16" clip-path="url(#cu${g})"/><path d="${area}" fill="#8E8A82" fill-opacity=".18" clip-path="url(#cd${g})"/>`;
+    [maxAbs, -maxAbs].forEach(v => sv += `<line x1="${padL}" x2="${W-padR}" y1="${y(v)}" y2="${y(v)}" stroke="#ECEAE5"/><text x="${padL-5}" y="${y(v)+3.5}" text-anchor="end" fill="#9A968D">${v>0?'+':''}${v}</text>`);
+    sv += `<line x1="${padL}" x2="${W-padR}" y1="${mid}" y2="${mid}" stroke="#C3BFB6"/><text x="${padL-5}" y="${mid+3.5}" text-anchor="end" fill="#9A968D">0</text>`;
+    // 關鍵分區段底色
+    let cs = null; pts.forEach((p, k) => { const r = p[2]; if (r.critical && cs == null) cs = k; const nx = pts[k+1]; if (cs != null && !(nx && nx[2].critical)){ const x0 = pts[cs][0] - (W-padL-padR)/Math.max(n,T)/2, x1 = p[0] + (W-padL-padR)/Math.max(n,T)/2; sv += `<rect x="${x0.toFixed(1)}" y="${padT}" width="${(x1-x0).toFixed(1)}" height="${H-padT-padB}" fill="#9C3D2C" fill-opacity=".07"/>`; cs = null; } });
+    sv += `<polyline points="${line}" fill="none" stroke="#232220" stroke-width="1.5" stroke-linejoin="round"/>`;
+    pts.forEach(p => { const r = p[2]; if (r.critical) sv += `<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="3" fill="${r.winner==='me'?'#9C3D2C':'#FFFFFF'}" stroke="#9C3D2C" stroke-width="1.2"/>`; if (r.star) sv += `<text x="${p[0].toFixed(1)}" y="${(p[1] - 7).toFixed(1)}" text-anchor="middle" fill="#9C3D2C" font-size="11">★</text>`; });
+    // 每一分的透明熱區：點了影片跳過去（所有局共用 rows 索引，順序與 rows 一致）
+    pts.forEach(p => { const r = p[2], sk = pointStart(rows, p[3]); if (sk != null) sv += `<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="7" fill="transparent" data-seek="${sk}"><title>第 ${r.game} 局 ${r.score_me}–${r.score_op} → ${r.after_me}–${r.after_op}　${r.winner==='me'?'我得分':'對手得分'}　${endLabel(r.end_type, r.winner, r.server)}${r.reason?'（'+r.reason+'）':''}</title></circle>`; });
+    sv += '</svg>';
+    const row = document.createElement('div'); row.className = 'g';
+    const t = document.createElement('div'); t.className = 't';
+    const sc = fin ? `${fin.me}–${fin.op}` : `${last.after_me}–${last.after_op}`;
+    t.innerHTML = `第 ${g} 局 <span class="sc">${sc}</span><span class="res ${fin&&fin.winner==='me'?'win':''}">${fin ? (fin.winner==='me'?'勝':'負') : '進行中'}　${n} 分</span>`;
+    const svgWrap = document.createElement('div'); svgWrap.innerHTML = sv;
+    row.append(t, svgWrap); box.append(row);
+  }
+  wrap.append(box);
 }
 
 /* ---------- tabs ---------- */
@@ -1634,6 +1686,11 @@ document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () =>
   requestAnimationFrame(drawTimeline);   // 右欄寬度改變，播放器與時間軸跟著重排
   try { localStorage.setItem(LS_KEY+':tab', t.dataset.tab); } catch(e){}
 }));
+/* 分析頁三個區段的開合狀態 */
+document.querySelectorAll('details.sec').forEach(d => {
+  try { const v = localStorage.getItem(LS_KEY+':sec:'+d.id); if (v != null) d.open = v === '1'; } catch(e){}
+  d.addEventListener('toggle', () => { try { localStorage.setItem(LS_KEY+':sec:'+d.id, d.open ? '1' : '0'); } catch(e){} });
+});
 /* 快捷鍵一覽的展開狀態 */
 { const kw = $('keysWrap');
   try { kw.open = localStorage.getItem(LS_KEY+':keys') !== '0'; } catch(e){ kw.open = true; }
