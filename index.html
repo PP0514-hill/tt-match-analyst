@@ -79,6 +79,16 @@ kbd{font-family:var(--pp-font-mono);font-size:12px;border:var(--bw) solid var(--
 .stage video{width:100%;height:100%;display:block;background:#141311}
 #ytHost,#ytHost iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
 #ytShield{position:absolute;inset:0;cursor:pointer}
+/* 影片左上角的即時比分 */
+.scorebug{position:absolute;top:10px;left:10px;z-index:2;pointer-events:none;background:rgba(20,19,17,.78);color:#fff;border-radius:6px;padding:6px 12px;display:flex;align-items:center;gap:10px;font-size:13px;line-height:1.2}
+.scorebug .pts{font-family:var(--pp-font-mono);font-size:22px;font-weight:500;letter-spacing:.02em}
+.scorebug .g{color:#CFCBC3}
+.scorebug .srv{width:6px;height:6px;border-radius:50%;background:var(--pp-accent);display:inline-block;vertical-align:middle;margin:0 4px;visibility:hidden}
+.scorebug .srv.on{visibility:visible}
+@media(max-width:600px){.scorebug{top:6px;left:6px;padding:4px 8px;font-size:12px}.scorebug .pts{font-size:18px}}
+/* 輸出好球集時蓋在影片上的進度 */
+.exporting{position:absolute;inset:0;z-index:3;background:rgba(20,19,17,.6);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;text-align:center;padding:16px}
+.exporting .big{font-size:20px;font-weight:500}
 .yturl input{background:#F3F1EC;border:0;border-radius:var(--r-ctl);padding:8px 10px;color:var(--pp-ink)}
 .kbstate{font-size:12px;color:var(--pp-ink-hint);display:flex;align-items:center;gap:6px}
 .kbstate::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--pp-state-off)}
@@ -145,6 +155,7 @@ kbd{font-family:var(--pp-font-mono);font-size:12px;border:var(--bw) solid var(--
 .log td{padding:5px 8px;border-bottom:var(--bw) solid var(--pp-line);white-space:nowrap}
 .log tr:hover td{background:var(--pp-bg-card-sub)}
 .log .me{color:var(--pp-accent-deep)}
+.log .star{color:var(--pp-accent)}
 .log .notecell{max-width:220px;overflow:hidden;text-overflow:ellipsis}
 .log .nt{color:var(--pp-ink-hint);margin-left:6px}
 .log .nt::before{content:"— "}
@@ -262,6 +273,8 @@ textarea.io{width:100%;min-height:160px;font-family:var(--pp-font-mono);font-siz
       <video id="video" playsinline preload="metadata" hidden></video>
       <div id="ytHost" hidden></div>
       <div id="ytShield" hidden title="點擊：播放／暫停"></div>
+      <div class="scorebug" id="scoreBug" hidden aria-live="polite"></div>
+      <div class="exporting" id="exportOverlay" hidden></div>
       <div class="drop" id="drop">
         <p>把比賽影片拖進來，或從電腦（含 Google Drive 桌面版同步資料夾）選檔。影片只在瀏覽器裡播放，不會上傳；載入後會在本機分析音軌切出回合，畫面判讀仍由你按鍵記分。</p>
         <div class="row" style="justify-content:center">
@@ -303,6 +316,7 @@ textarea.io{width:100%;min-height:160px;font-family:var(--pp-font-mono);font-siz
       <span><kbd>R</kbd> <kbd>T</kbd></span><span>發球得分（含對方吃發球）／發球失誤；依當分發球方自動判定可用哪一個</span>
       <span><kbd>Z</kbd> <kbd>X</kbd> <kbd>C</kbd> <kbd>V</kbd> <kbd>B</kbd></span><span>我方失誤原因：步法沒到／旋轉判斷錯／選擇太冒進／純執行失誤／其他（手寫）</span>
       <span><kbd>N</kbd></span><span>替上一分加備註；我主動得分或發球得分後會自動問備註（Enter 略過）</span>
+      <span><kbd>H</kbd></span><span>標記好球：輸入中按下標記這一分，沒在輸入時標記／取消上一分；好球會出現在時間軸與分析頁的好球集，可一鍵剪成影片</span>
       <span><kbd>1</kbd>–<kbd>9</kbd> <kbd>0</kbd></span><span>拍數（0 ＝ 10 拍以上）；有擊球時間戳時自動帶入</span>
       <span><kbd>Space</kbd></span><span>播放／暫停</span>
       <span><kbd>←</kbd> <kbd>→</kbd></span><span>回跳／前進 3 秒（Shift：15 秒）</span>
@@ -398,6 +412,21 @@ textarea.io{width:100%;min-height:160px;font-family:var(--pp-font-mono);font-siz
       <div class="kpis" id="kpis" style="margin-top:16px"></div>
       <div class="refl-wrap"><label class="cap" for="refl-overall">整體心得</label>
         <textarea class="refl" id="refl-overall" data-key="overall" placeholder="看完整份分析之後，最想記住的一兩件事……"></textarea></div>
+    </div>
+
+    <div class="card" id="hlCard">
+      <div class="row" style="justify-content:space-between">
+        <h3>好球集 <span class="mono cap" id="hlCount">0</span></h3>
+        <span class="cap">標註時按 <kbd>H</kbd> 標記；點任一列影片跳過去</span>
+      </div>
+      <div id="hlList" style="overflow-x:auto;margin-top:12px"></div>
+      <div class="row" style="margin-top:14px;align-items:flex-end">
+        <label class="f" style="width:110px">片段前留（秒）<input type="number" id="hlPre" value="3" min="0" max="30" step="0.5" inputmode="decimal"></label>
+        <label class="f" style="width:110px">片段後留（秒）<input type="number" id="hlPost" value="1.5" min="0" max="30" step="0.5" inputmode="decimal"></label>
+        <button class="btn accent" id="btnHlVideo" type="button">輸出好球集影片（WebM）</button>
+        <button class="btn" id="btnHlScript" type="button">下載 ffmpeg 剪輯腳本</button>
+      </div>
+      <p class="cap" id="hlStatus" style="margin:10px 0 0">影片輸出是在瀏覽器裡把每段好球依序播放並錄下來，需要等片段總長度的時間，期間請別切換分頁。輸出 WebM，桌機 Chrome／Edge 可用；要 MP4 或無損剪輯，用 ffmpeg 腳本在電腦上跑。</p>
     </div>
 
     <h2 class="sec">一、局與局之間</h2>
@@ -650,7 +679,7 @@ function onTime(){ $('tcur').textContent = fmtT(P.time); checkAutoPause(P.time);
 /* 回合結束自動暫停：播放頭越過某段回合 end＋0.8s 時暫停，只問誰得分。已記錄過的回合、目前正在輸入時不觸發。 */
 function checkAutoPause(t){
   const rl = onsets && onsets.rallies;
-  if (!rl || !rl.length || !$('autoPause').checked || !P.loaded || P.paused || pending){ prevT = t; return; }
+  if (exporting || !rl || !rl.length || !$('autoPause').checked || !P.loaded || P.paused || pending){ prevT = t; return; }
   if (t < prevT){ prevT = t; autoPauseIdx = -1; return; }   // 往回拉，重設
   const lastT = (!isSample && match.points.length) ? (match.points[match.points.length-1].t_end ?? -1) : -1;   // 範例資料不算已記錄
   for (let i = 0; i < rl.length; i++){
@@ -673,7 +702,7 @@ function afterLoad(label){
   if (!onsets) $('tlInfo').textContent = '影片就緒。紅向上＝我得分、黑向下＝對手得分、淡紅底＝關鍵分；拍數需手動輸入或匯入擊球時間戳。';
   $('tdur').textContent = fmtT(P.duration);
   window.focus(); document.body.focus?.();
-  drawTimeline();
+  renderBoard(); drawTimeline();
   toast('已載入 ' + label + '，按 Space 播放，A／L 記分');
 }
 $('guideClose').addEventListener('click', () => { $('guide').hidden = true; });
@@ -779,7 +808,7 @@ function drawTimeline(){
     return;
   }
   const x = t => (t/dur)*W;
-  const bandH = 18, mid = bandH + (H - bandH - 14) / 2, half = (H - bandH - 14) / 2 - 3;
+  const bandH = 22, mid = bandH + (H - bandH - 14) / 2, half = (H - bandH - 14) / 2 - 3;
   const d = derive();
   const rows = d.rows.filter(r => r.t_end != null);
   // --- 上層：局次色帶 ---
@@ -789,15 +818,17 @@ function drawTimeline(){
   const cur = d.game; const curStart = rows.length ? rows[rows.length-1].t_end : 0;
   if (!d.matchOver && !(cur in games)) games[cur] = {start: curStart, end: Math.max(P.time, curStart), me:d.a, op:d.b, live:true};
   else if (!d.matchOver && games[cur]) { games[cur].end = Math.max(P.time, games[cur].end); games[cur].live = true; }
-  ctx.font = '11px JetBrains Mono, monospace'; ctx.textBaseline = 'middle';
+  ctx.textBaseline = 'middle';
   Object.entries(games).forEach(([g, G], i) => {
+    ctx.font = (G.live ? '500 13px ' : '11px ') + 'JetBrains Mono, monospace';
     const x0 = x(G.start), x1 = Math.max(x(G.end), x0 + 2);
     ctx.fillStyle = i % 2 ? '#ECEAE5' : '#F3F1EC';
     ctx.fillRect(x0, 0, x1 - x0, bandH);
     ctx.fillStyle = '#C3BFB6'; ctx.fillRect(x0, 0, 1, H);
     const won = !G.live && G.me !== G.op ? (G.me > G.op ? '勝' : '負') : '';
     const label = `第${g}局 ${G.me}–${G.op}${G.live ? ' ·' : ''}${won ? ' ' + won : ''}`;
-    if (x1 - x0 > ctx.measureText(label).width + 10){ ctx.fillStyle = G.live ? '#9C3D2C' : '#6E6B64'; ctx.fillText(label, x0 + 6, bandH/2); }
+    const fits = x1 - x0 > ctx.measureText(label).width + 10;
+    if (fits || G.live){ ctx.fillStyle = G.live ? '#9C3D2C' : '#6E6B64'; ctx.fillText(label, fits ? x0 + 6 : Math.min(x0 + 6, W - ctx.measureText(label).width - 6), bandH/2); }
   });
   ctx.fillStyle = '#D8D5CE'; ctx.fillRect(0, bandH, W, 0.5);
   // --- 中層：關鍵分區段（底）＋ 逐分刻度 ---
@@ -809,6 +840,7 @@ function drawTimeline(){
     if (critStart != null && !nextCrit){ ctx.fillStyle = '#F2E3DE'; ctx.fillRect(x(critStart), bandH + 1, Math.max(2, x(r.t_end) - x(critStart)), H - bandH - 14); critStart = null; }
   });
   ctx.fillStyle = '#D8D5CE'; ctx.fillRect(0, mid, W, 0.5);
+  rows.forEach(r => { if (r.star){ const xx = x(r.t_end), y0 = bandH + 6; ctx.fillStyle = '#9C3D2C'; ctx.beginPath(); ctx.moveTo(xx, y0 - 4); ctx.lineTo(xx + 4, y0); ctx.lineTo(xx, y0 + 4); ctx.lineTo(xx - 4, y0); ctx.closePath(); ctx.fill(); } });
   rows.forEach(r => {
     const xx = x(r.t_end);
     const serveEnd = r.end_type === 'serve_win' || r.end_type === 'serve_fault';
@@ -981,6 +1013,13 @@ function suggestEnd(p){
   return null;
 }
 function bump(){ if (pending) pending.keys = (pending.keys || 0) + 1; }
+/* H：好球標記。輸入中 → 這一分；否則 → 上一分切換 */
+function toggleStar(){
+  if (pending){ pending.star = !pending.star; bump(); renderStep(); return; }
+  if (!match.points.length) return;
+  const p = match.points[match.points.length-1]; p.star = !p.star; save(); renderAll();
+  toast(p.star ? `第 ${match.points.length} 分標為好球` : `第 ${match.points.length} 分取消好球`);
+}
 function validEnds(p){
   // R（發球得分／吃發球）只在發球方贏時成立；T（發球失誤）只在發球方輸時成立
   const serverWon = p.winner === p.server;
@@ -1007,6 +1046,7 @@ function setRally(n){
 }
 function commit(){
   const p = {winner:pending.winner, end_type:pending.end_type, reason:pending.reason, note:pending.note || '', rally:pending.rally ?? null, t_end:pending.t_end};
+  if (pending.star) p.star = true;
   if (pending.t0){ p.ann = {keys: pending.keys || 1, sec: +((performance.now() - pending.t0) / 1000).toFixed(1)}; }
   match.ann = match.ann || {}; const now = Date.now(); if (!match.ann.first) match.ann.first = now; match.ann.last = now;
   match.points.push(p);
@@ -1059,6 +1099,7 @@ function handleKey(e){
   const tag = (e.target.tagName || '').toLowerCase();
   if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
   if (e.metaKey || e.ctrlKey || e.altKey) return;
+  if (exporting) return;   // 輸出好球集期間只有 Esc（由輸出流程自己接）
   const annotOn = !$('pane-annot').hidden;   // 分析／資料分頁只保留播放控制鍵
   const tb = $('stepText'); if (tb){ tb.focus(); return; }   // 文字欄開著時，所有按鍵都交給它
   // 用實體鍵位 e.code 判斷：中文輸入法開著（e.key 變成 'Process'）也照樣可用
@@ -1082,6 +1123,7 @@ function handleKey(e){
   if (K in ENDS){ setEnd(K); return; }
   if (K in REASONS || K === REASON_OTHER_KEY){ setReason(K); return; }
   if (K === 'N'){ editLastNote(); return; }
+  if (K === 'H'){ toggleStar(); return; }
   if (/^[0-9]$/.test(K)){ setRally(K === '0' ? 10 : +K); return; }
   if (K === 'S'){ toggleServer(); return; }
 }
@@ -1113,11 +1155,12 @@ function renderStep(){
     $('stepLabel').textContent = '這一分';
     q.innerHTML = '誰得分？ <kbd>A</kbd> 我　<kbd>L</kbd> 對手';
     ch.append(choiceBtn('A','我得分', () => startPoint('me')), choiceBtn('L','對手得分', () => startPoint('op')));
-    if (match.points.length) pend.append(chip('N 替上一分加備註', false, editLastNote));
+    if (match.points.length){ pend.append(chip('N 替上一分加備註', false, editLastNote)); pend.append(chip(match.points[match.points.length-1].star ? 'H 取消上一分好球' : 'H 上一分標好球', false, toggleStar)); }
   } else {
     chips.push(chip(pending.winner === 'me' ? '我得分' : '對手得分', true));
     chips.push(chip((pending.server === 'me' ? '我' : '對手') + '發球', false));
     if (pending.rally != null) chips.push(chip(`拍數 ${pending.rally}${pending.rally>=10?'+':''}${pending.rally_auto?'（自動）':''}`, true));
+    if (pending.star) chips.push(chip('★ 好球', true));
     if (pending.stage === 'end'){
       $('stepLabel').textContent = '結束方式';
       q.textContent = '這一分怎麼結束的？';
@@ -1144,6 +1187,7 @@ function renderStep(){
       q.textContent = '這一分的策略考量？';
       ch.append(textBox('例：連兩顆長球後改短下旋，他站位已退', '', 'Enter 儲存並進下一分，Esc 略過'));
     }
+    pend.append(chip(pending.star ? 'H 取消好球' : 'H 好球', false, toggleStar));
     pend.append(chip('Esc 取消', false, cancelPending));
   }
   chips.forEach(c => pend.prepend(c));
@@ -1177,6 +1221,8 @@ function renderBoard(){
   $('srvOp').classList.toggle('on', d.server === 'op' && !d.matchOver);
   $('nameMe').textContent = match.meta.me || '我';
   $('nameOp').textContent = match.meta.opponent || '對手';
+  { const sb = $('scoreBug'); sb.hidden = !(P.loaded && $('drop').hidden);
+    if (!sb.hidden){ sb.innerHTML = `<span><span class="srv ${d.server==='me'&&!d.matchOver?'on':''}"></span>${esc(match.meta.me||'我')}</span><span class="pts">${d.a}–${d.b}</span><span>${esc(match.meta.opponent||'對手')}<span class="srv ${d.server==='op'&&!d.matchOver?'on':''}"></span></span><span class="g">第 ${d.game} 局 · 局 ${d.gm}–${d.go}</span>`; } }
   const gh = $('gameHist'); gh.innerHTML = '';
   { const [sm, so] = startGames(); if (sm + so){ const s = document.createElement('span'); s.textContent = `前 ${sm + so} 局未錄（${sm}–${so}）`; s.title = '影片開始前已打完的局數'; gh.append(s); } }
   d.games.forEach(g => { const s = document.createElement('span'); s.className='mono'; s.textContent = `${g.me}–${g.op}`; gh.append(s); });
@@ -1187,7 +1233,7 @@ function renderBoard(){
   rows.forEach((r, i) => {
     const tr = document.createElement('tr');
     const idx = d.rows.length - i;
-    tr.innerHTML = `<td class="mono">${idx}</td><td class="mono">${r.game}</td><td class="mono">${r.score_me}–${r.score_op}${r.critical?' ·':''}</td>
+    tr.innerHTML = `<td class="mono">${idx}${r.star?'<span class="star" title="好球"> ★</span>':''}</td><td class="mono">${r.game}</td><td class="mono">${r.score_me}–${r.score_op}${r.critical?' ·':''}</td>
       <td>${r.server==='me'?'我':'對'}</td><td class="${r.winner==='me'?'me':''}">${r.winner==='me'?'我':'對手'}</td>
       <td class="mono">${r.rally==null?'—':(r.rally>=10?'10+':r.rally)}</td><td>${endLabel(r.end_type, r.winner, r.server)}</td><td class="notecell" title="${esc(r.note||'')}">${esc(r.reason||'')}${r.note?`<span class="nt">${esc(r.note)}</span>`:''}</td>
       <td class="mono">${r.t_end==null?'—':fmtT(r.t_end)}</td>`;
@@ -1216,7 +1262,7 @@ function renderAnalysis(){
   const d = derive(); const rows = d.rows;
   $('anaTitle').textContent = (match.meta.title || '未命名比賽') + (isSample ? '　範例資料' : '');
   $('anaMeta').textContent = rows.length ? `${match.meta.date || ''}　${rows.length} 分　局數 ${d.gm}–${d.go}${d.matchOver ? (d.gm>d.go?'　勝':'　負') : ''}` : '';
-  fillReflections();
+  fillReflections(); renderHighlights(rows);
   const kp = $('kpis'); kp.innerHTML = '';
   const clearIds = ['insights','gamesTable','seriesBars','trajWrap','critBars','lossBars','noteList','reasonRally','winBars','streaks','mindKpis','driftTable'];
   if (!rows.length){ kp.innerHTML = '<div class="empty">還沒有資料。到「標註」開始記錄，或在「比賽資料」匯入 JSON。</div>'; clearIds.forEach(id => $(id).innerHTML=''); return; }
@@ -1390,6 +1436,86 @@ function renderAnalysis(){
   if (!ins.length) ol.innerHTML = '<li class="quiet">各項指標都在門檻內，沒有特別突出的訊號。樣本少的時候這很正常。</li>';
   else ins.slice(0,6).forEach(([t, where]) => { const li = document.createElement('li'); li.textContent = t; const w = document.createElement('span'); w.className = 'where'; w.textContent = '→ ' + where; li.append(w); ol.append(li); });
 }
+/* ---------- 好球集 ---------- */
+let exporting = false;
+function highlightClips(rows){
+  const pre = Math.max(0, +$('hlPre').value || 0), post = Math.max(0, +$('hlPost').value || 0);
+  const clips = [];
+  rows.forEach((r, i) => {
+    if (!r.star || r.t_end == null) return;
+    let base = null;
+    if (onsets && onsets.rallies){ const cands = onsets.rallies.filter(x => x.end <= r.t_end + 0.5 && x.end >= r.t_end - 4); if (cands.length) base = cands[cands.length-1].start; }
+    if (base == null){ const ps = pointStart(rows, i); base = ps != null ? +ps : Math.max(0, r.t_end - 8); }
+    clips.push({i, start: Math.max(0, base - pre), end: r.t_end + post, row: r});
+  });
+  clips.sort((a,b) => a.start - b.start);
+  const merged = [];   // 重疊的片段合併，免得同一段錄兩次
+  for (const c of clips){ const last = merged[merged.length-1]; if (last && c.start <= last.end){ last.end = Math.max(last.end, c.end); last.rows.push(c.row); } else merged.push({start:c.start, end:c.end, rows:[c.row]}); }
+  return merged;
+}
+function renderHighlights(rows){
+  const stars = rows.filter(r => r.star);
+  $('hlCount').textContent = stars.length;
+  const box = $('hlList');
+  if (!stars.length){ box.innerHTML = '<p class="cap" style="margin:0">還沒有好球。標註時按 H，或在逐分紀錄最後一分用「H 上一分標好球」。</p>'; }
+  else box.innerHTML = '<table class="mtable"><thead><tr><th>#</th><th>局</th><th>比分</th><th>發</th><th>拍</th><th>結束</th><th>原因／備註</th><th>時間</th></tr></thead><tbody>' +
+    stars.map(r => { const i = rows.indexOf(r), sk = pointStart(rows, i); return `<tr${sk!=null?` data-seek="${sk}" title="跳到這一分"`:''}><td class="mono">${i+1}</td><td class="mono">${r.game}</td><td class="mono">${r.score_me}–${r.score_op}</td><td>${r.server==='me'?'我':'對'}</td><td class="mono">${r.rally==null?'—':(r.rally>=10?'10+':r.rally)}</td><td>${endLabel(r.end_type,r.winner,r.server)}</td><td>${esc([r.reason, r.note].filter(Boolean).join('；'))}</td><td class="mono">${r.t_end!=null?fmtT(r.t_end):'—'}</td></tr>`; }).join('') + '</tbody></table>';
+  const can = P.kind === 'file' && P.loaded && stars.some(r => r.t_end != null) && !exporting;
+  $('btnHlVideo').disabled = !can || !('captureStream' in HTMLVideoElement.prototype || 'mozCaptureStream' in HTMLVideoElement.prototype) || typeof MediaRecorder === 'undefined';
+  $('btnHlScript').disabled = !stars.some(r => r.t_end != null);
+  if (!can && stars.length && P.kind !== 'file') $('hlStatus').textContent = 'YouTube 來源無法在瀏覽器裡剪輯；請下載 ffmpeg 腳本，搭配下載下來的影片檔在電腦上跑。';
+}
+const waitEvent = (el, ev, ms) => new Promise(res => { let done = false; const h = () => { if (!done){ done = true; res(true); } }; el.addEventListener(ev, h, {once:true}); setTimeout(() => { if (!done){ done = true; el.removeEventListener(ev, h); res(false); } }, ms); });
+async function exportHighlightVideo(){
+  const d = derive(); const clips = highlightClips(d.rows);
+  if (!clips.length){ toast('沒有可剪的好球'); return; }
+  const cs = video.captureStream ? video.captureStream() : video.mozCaptureStream();
+  const mime = ['video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm'].find(m => MediaRecorder.isTypeSupported(m)) || '';
+  const rec = new MediaRecorder(cs, mime ? {mimeType: mime, videoBitsPerSecond: 8e6} : undefined);
+  const chunks = []; rec.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); };
+  const total = clips.reduce((s,c) => s + (c.end - c.start), 0);
+  const keep = {t: video.currentTime, rate: video.playbackRate, paused: video.paused, ap: $('autoPause').checked};
+  exporting = true; $('autoPause').checked = false; video.playbackRate = 1;
+  const ov = $('exportOverlay'); ov.hidden = false;
+  const say = (i, c) => { ov.innerHTML = `<div class="big">輸出好球集 ${i}／${clips.length}</div><div>${fmtT(c.start)} – ${fmtT(c.end)}　共 ${clips.length} 段、約 ${Math.ceil(total)} 秒</div><div class="cap" style="color:#CFCBC3">錄製中請留在這個分頁；按 Esc 取消</div>`; $('hlStatus').textContent = `輸出中 ${i}／${clips.length}……`; };
+  let cancelled = false; const onKey = e => { if (e.key === 'Escape'){ cancelled = true; } }; document.addEventListener('keydown', onKey, true);
+  try {
+    for (let i = 0; i < clips.length && !cancelled; i++){
+      const c = clips[i]; say(i+1, c);
+      video.pause(); video.currentTime = c.start; await waitEvent(video, 'seeked', 2000);
+      if (i === 0) rec.start(250); else if (rec.state === 'paused') rec.resume();
+      await video.play();
+      await new Promise(res => { const tick = () => { if (cancelled || video.ended || video.currentTime >= c.end){ res(); return; } setTimeout(tick, 60); }; tick(); });
+      video.pause(); if (rec.state === 'recording') rec.pause();
+    }
+    if (rec.state !== 'inactive'){ const stopped = waitEvent(rec, 'stop', 5000); rec.stop(); await stopped; }
+    if (cancelled){ $('hlStatus').textContent = '已取消輸出。'; toast('已取消'); return; }
+    const blob = new Blob(chunks, {type: mime || 'video/webm'});
+    const name = fileStem() + '-highlights.webm';
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.append(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 4000);
+    $('hlStatus').textContent = `完成：${name}（${(blob.size/1048576).toFixed(1)} MB，${clips.length} 段）。瀏覽器應已開始下載。`; toast('好球集已輸出');
+  } catch(e){ $('hlStatus').textContent = '輸出失敗：' + (e && e.message || e); }
+  finally {
+    document.removeEventListener('keydown', onKey, true);
+    exporting = false; ov.hidden = true; $('autoPause').checked = keep.ap; video.playbackRate = keep.rate; video.currentTime = keep.t; if (!keep.paused) video.play().catch(()=>{});
+    renderHighlights(derive().rows);
+  }
+}
+function exportHighlightScript(){
+  const d = derive(); const clips = highlightClips(d.rows);
+  if (!clips.length){ toast('沒有可剪的好球'); return; }
+  const src = videoName || 'match.mp4', stem = fileStem();
+  const L = ['#!/usr/bin/env bash', `# 桌球對戰記錄簿：好球集剪輯腳本（${stem}）。需要 ffmpeg。`, `# 用法：bash ${stem}-highlights.sh "影片路徑"   （不給路徑就用 ${src}）`,
+    '# 預設 -c copy 不重新編碼：快、無損，但切點會靠到最近的關鍵幀，片段開頭可能多出零點幾秒。要精準切點，把兩行 "-c copy" 改成 "-c:v libx264 -c:a aac"。',
+    'set -e', `SRC="\${1:-${src}}"`, `OUT="${stem}-highlights.mp4"`, 'TMP="$(mktemp -d)"'];
+  clips.forEach((c, i) => L.push(`ffmpeg -y -loglevel error -ss ${c.start.toFixed(2)} -to ${c.end.toFixed(2)} -i "$SRC" -c copy -avoid_negative_ts make_zero "$TMP/clip-${String(i+1).padStart(2,'0')}.mp4"   # ${c.rows.map(r => `第${r.game}局 ${r.score_me}–${r.score_op}`).join('、')}`));
+  L.push('for f in "$TMP"/clip-*.mp4; do printf "file \'%s\'\\n" "$f"; done > "$TMP/list.txt"', 'ffmpeg -y -loglevel error -f concat -safe 0 -i "$TMP/list.txt" -c copy "$OUT"', 'rm -rf "$TMP"', 'echo "→ $OUT"');
+  offerDownload(stem + '-highlights.sh', L.join('\n') + '\n');
+}
+$('btnHlVideo').addEventListener('click', exportHighlightVideo);
+$('btnHlScript').addEventListener('click', exportHighlightScript);
+['hlPre','hlPost'].forEach(id => $(id).addEventListener('input', () => renderHighlights(derive().rows)));
+
 /* 心得欄：存進 match.reflections */
 function fillReflections(){
   document.querySelectorAll('textarea.refl').forEach(t => { if (document.activeElement !== t) t.value = (match.reflections && match.reflections[t.dataset.key]) || ''; });
@@ -1526,8 +1652,8 @@ async function offerDownload(name, data){
 $('btnExport').addEventListener('click', () => offerDownload(fileStem() + '.json', JSON.stringify(exportObj(), null, 2)));
 $('btnExportCsv').addEventListener('click', () => {
   const d = derive();
-  const head = ['idx','game','score_me','score_op','server','winner','rally','end_type','end_label','reason','note','critical','t_end'];
-  const lines = [head.join(',')].concat(d.rows.map((r,i) => [i+1,r.game,r.score_me,r.score_op,r.server,r.winner,r.rally??'',r.end_type,endLabel(r.end_type,r.winner,r.server),r.reason??'',r.note??'',r.critical?1:0,r.t_end??''].map(v => /[",\n]/.test(String(v)) ? `"${String(v).replace(/"/g,'""')}"` : v).join(',')));
+  const head = ['idx','game','score_me','score_op','server','winner','rally','end_type','end_label','reason','note','critical','star','t_end'];
+  const lines = [head.join(',')].concat(d.rows.map((r,i) => [i+1,r.game,r.score_me,r.score_op,r.server,r.winner,r.rally??'',r.end_type,endLabel(r.end_type,r.winner,r.server),r.reason??'',r.note??'',r.critical?1:0,r.star?1:0,r.t_end??''].map(v => /[",\n]/.test(String(v)) ? `"${String(v).replace(/"/g,'""')}"` : v).join(',')));
   offerDownload(fileStem() + '-points.csv', '﻿' + lines.join('\n'));
 });
 $('btnImport').addEventListener('click', () => $('importFile').click());
