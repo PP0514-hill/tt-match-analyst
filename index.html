@@ -156,6 +156,12 @@ kbd{font-family:var(--pp-font-mono);font-size:12px;border:var(--bw) solid var(--
 .log tr:hover td{background:var(--pp-bg-card-sub)}
 .log .me{color:var(--pp-accent-deep)}
 .log .star{color:var(--pp-accent)}
+.log tr.cur td{background:var(--pp-accent-soft)}
+.log tr.cur td:first-child{box-shadow:inset 3px 0 0 var(--pp-accent)}
+.starbtn{border:0;background:none;cursor:pointer;color:var(--pp-line-strong);font-size:15px;line-height:1;padding:2px 6px;border-radius:4px}
+.starbtn:hover{background:var(--pp-bg-card-sub);color:var(--pp-ink-sub)}
+.starbtn.on{color:var(--pp-accent)}
+@media(pointer:coarse){.starbtn{font-size:18px;padding:6px 8px}}
 .log .notecell{max-width:220px;overflow:hidden;text-overflow:ellipsis}
 .log .nt{color:var(--pp-ink-hint);margin-left:6px}
 .log .nt::before{content:"— "}
@@ -316,7 +322,7 @@ textarea.io{width:100%;min-height:160px;font-family:var(--pp-font-mono);font-siz
       <span><kbd>R</kbd> <kbd>T</kbd></span><span>發球得分（含對方吃發球）／發球失誤；依當分發球方自動判定可用哪一個</span>
       <span><kbd>Z</kbd> <kbd>X</kbd> <kbd>C</kbd> <kbd>V</kbd> <kbd>B</kbd></span><span>我方失誤原因：步法沒到／旋轉判斷錯／選擇太冒進／純執行失誤／其他（手寫）</span>
       <span><kbd>N</kbd></span><span>替上一分加備註；我主動得分或發球得分後會自動問備註（Enter 略過）</span>
-      <span><kbd>H</kbd></span><span>標記好球：輸入中按下標記這一分，沒在輸入時標記／取消上一分；好球會出現在時間軸與分析頁的好球集，可一鍵剪成影片</span>
+      <span><kbd>H</kbd></span><span>標記好球：輸入中按下標記這一分；沒在輸入時標記播放頭所在的那一分（回頭看也能標），逐分紀錄每列前的 ★ 也可點；好球會進時間軸與分析頁的好球集，可一鍵剪成影片</span>
       <span><kbd>1</kbd>–<kbd>9</kbd> <kbd>0</kbd></span><span>拍數（0 ＝ 10 拍以上）；有擊球時間戳時自動帶入</span>
       <span><kbd>Space</kbd></span><span>播放／暫停</span>
       <span><kbd>←</kbd> <kbd>→</kbd></span><span>回跳／前進 3 秒（Shift：15 秒）</span>
@@ -387,8 +393,8 @@ textarea.io{width:100%;min-height:160px;font-family:var(--pp-font-mono);font-siz
       <div class="row" style="justify-content:space-between;margin-bottom:8px">
         <h3>逐分紀錄</h3><span class="cap"><span class="mono" id="nPts">0</span> 分</span>
       </div>
-      <div class="logwrap">
-      <table><thead><tr><th>#</th><th>局</th><th>比分</th><th>發</th><th>勝</th><th>拍</th><th>結束</th><th>原因／備註</th><th>時間</th></tr></thead>
+      <div class="logwrap" id="logwrap">
+      <table><thead><tr><th title="好球">★</th><th>#</th><th>局</th><th>比分</th><th>發</th><th>勝</th><th>拍</th><th>結束</th><th>原因／備註</th><th>時間</th></tr></thead>
       <tbody id="logBody"></tbody></table>
       </div>
     </div>
@@ -675,7 +681,42 @@ const P = {
   toggle(){ if (!this.loaded) return; if (this.kind === 'yt') { this.paused ? this.yt.playVideo() : this.yt.pauseVideo(); } else { video.paused ? video.play() : video.pause(); } },
   setRate(r){ if (!this.loaded) return; if (this.kind === 'yt') this.yt.setPlaybackRate(r); else video.playbackRate = r; },
 };
-function onTime(){ $('tcur').textContent = fmtT(P.time); checkAutoPause(P.time); drawTimeline(); }
+function onTime(){ $('tcur').textContent = fmtT(P.time); checkAutoPause(P.time); syncToTime(P.time); drawTimeline(); }
+/* 播放頭在第幾分：這一分的區間是［前一分 t_end，本分 t_end）；超過最後一分回 -1（＝現場） */
+function pointIndexAt(rows, t){
+  let idx = -1;
+  for (let i = 0; i < rows.length; i++){ const r = rows[i]; if (r.t_end == null) continue; if (t < r.t_end){ idx = i; break; } }   // 停在 t_end 本身＝這分已結束
+  return idx;
+}
+let curIdx = -1;   // 目前播放頭所在的分（derive().rows 的索引）；-1＝在最後一分之後
+function syncToTime(t){
+  if (!P.loaded) return;
+  const rows = derive().rows;
+  const idx = pointIndexAt(rows, t);
+  if (idx === curIdx) return;
+  curIdx = idx;
+  const tb = $('logBody');
+  tb.querySelectorAll('tr.cur').forEach(tr => tr.classList.remove('cur'));
+  const tr = idx >= 0 ? tb.querySelector(`tr[data-idx="${idx}"]`) : null;
+  if (tr){
+    tr.classList.add('cur');
+    const wrap = $('logwrap'), top = tr.offsetTop - wrap.offsetTop, bottom = top + tr.offsetHeight;   // 只捲逐分紀錄自己的框，不動整個面板
+    if (top < wrap.scrollTop) wrap.scrollTop = Math.max(0, top - 8);
+    else if (bottom > wrap.scrollTop + wrap.clientHeight) wrap.scrollTop = bottom - wrap.clientHeight + 8;
+  }
+  renderScoreBug(rows, idx);
+  const pend = $('pend'); if (!pending && pend) renderStep();   // 「H 標記第 N 分」的字要跟著播放頭
+}
+function renderScoreBug(rows, idx){
+  const sb = $('scoreBug'); sb.hidden = !(P.loaded && $('drop').hidden); if (sb.hidden) return;
+  const d = derive();
+  let a = d.a, b = d.b, g = d.game, gm = d.gm, go = d.go, srv = d.server, review = false;
+  if (idx >= 0 && idx < rows.length){   // 回看：顯示那一分開打前的比分與當時發球方
+    const r = rows[idx]; a = r.score_me; b = r.score_op; g = r.game; srv = r.server; review = true;
+    let m = 0, o = 0; const [sm, so] = startGames(); m = sm; o = so; for (const G of d.games){ if (G.game < g){ if (G.winner === 'me') m++; else o++; } } gm = m; go = o;
+  }
+  sb.innerHTML = `<span><span class="srv ${srv==='me'&&!d.matchOver?'on':''}"></span>${esc(match.meta.me||'我')}</span><span class="pts">${a}–${b}</span><span>${esc(match.meta.opponent||'對手')}<span class="srv ${srv==='op'&&!d.matchOver?'on':''}"></span></span><span class="g">第 ${g} 局 · 局 ${gm}–${go}${review?' · 回看':''}</span>`;
+}
 /* 回合結束自動暫停：播放頭越過某段回合 end＋0.8s 時暫停，只問誰得分。已記錄過的回合、目前正在輸入時不觸發。 */
 function checkAutoPause(t){
   const rl = onsets && onsets.rallies;
@@ -831,7 +872,8 @@ function drawTimeline(){
     if (fits || G.live){ ctx.fillStyle = G.live ? '#9C3D2C' : '#6E6B64'; ctx.fillText(label, fits ? x0 + 6 : Math.min(x0 + 6, W - ctx.measureText(label).width - 6), bandH/2); }
   });
   ctx.fillStyle = '#D8D5CE'; ctx.fillRect(0, bandH, W, 0.5);
-  // --- 中層：關鍵分區段（底）＋ 逐分刻度 ---
+  // --- 中層：目前播放頭所在分的區間（最底）→ 關鍵分區段 → 逐分刻度 ---
+  if (curIdx >= 0){ const ci = rows.findIndex(r => r === d.rows[curIdx]); if (ci >= 0){ const r = rows[ci], p0 = ci ? rows[ci-1].t_end : (games[r.game]?.start ?? 0); ctx.fillStyle = '#E6E3DC'; ctx.fillRect(x(p0), bandH + 1, Math.max(2, x(r.t_end) - x(p0)), H - bandH - 14); } }
   let critStart = null;
   rows.forEach((r, i) => {
     const prevT = i ? rows[i-1].t_end : (games[r.game]?.start ?? 0);
@@ -1013,13 +1055,22 @@ function suggestEnd(p){
   return null;
 }
 function bump(){ if (pending) pending.keys = (pending.keys || 0) + 1; }
-/* H：好球標記。輸入中 → 這一分；否則 → 上一分切換 */
+/* H：好球標記。輸入中 → 這一分；否則 → 播放頭所在的那一分（回頭看也能標）；播放頭在最後一分之後 → 上一分 */
+function starTargetIdx(){ return curIdx >= 0 ? curIdx : match.points.length - 1; }
+function setStar(i, val){
+  const p = match.points[i]; if (!p) return;
+  p.star = val == null ? !p.star : !!val; save(); renderAll();
+  toast(p.star ? `第 ${i+1} 分標為好球` : `第 ${i+1} 分取消好球`);
+}
 function toggleStar(){
   if (pending){ pending.star = !pending.star; bump(); renderStep(); return; }
   if (!match.points.length) return;
-  const p = match.points[match.points.length-1]; p.star = !p.star; save(); renderAll();
-  toast(p.star ? `第 ${match.points.length} 分標為好球` : `第 ${match.points.length} 分取消好球`);
+  setStar(starTargetIdx());
 }
+$('logBody').addEventListener('click', e => {
+  const b = e.target.closest('.starbtn'); if (!b) return;
+  e.stopPropagation(); setStar(+b.dataset.star);
+}, true);
 function validEnds(p){
   // R（發球得分／吃發球）只在發球方贏時成立；T（發球失誤）只在發球方輸時成立
   const serverWon = p.winner === p.server;
@@ -1155,7 +1206,9 @@ function renderStep(){
     $('stepLabel').textContent = '這一分';
     q.innerHTML = '誰得分？ <kbd>A</kbd> 我　<kbd>L</kbd> 對手';
     ch.append(choiceBtn('A','我得分', () => startPoint('me')), choiceBtn('L','對手得分', () => startPoint('op')));
-    if (match.points.length){ pend.append(chip('N 替上一分加備註', false, editLastNote)); pend.append(chip(match.points[match.points.length-1].star ? 'H 取消上一分好球' : 'H 上一分標好球', false, toggleStar)); }
+    if (match.points.length){ pend.append(chip('N 替上一分加備註', false, editLastNote));
+      const ti = starTargetIdx(), tp = match.points[ti]; const who = ti === match.points.length - 1 ? '上一分' : `第 ${ti+1} 分`;
+      pend.append(chip(tp && tp.star ? `H 取消${who}好球` : `H ${who}標好球`, false, toggleStar)); }
   } else {
     chips.push(chip(pending.winner === 'me' ? '我得分' : '對手得分', true));
     chips.push(chip((pending.server === 'me' ? '我' : '對手') + '發球', false));
@@ -1221,8 +1274,8 @@ function renderBoard(){
   $('srvOp').classList.toggle('on', d.server === 'op' && !d.matchOver);
   $('nameMe').textContent = match.meta.me || '我';
   $('nameOp').textContent = match.meta.opponent || '對手';
-  { const sb = $('scoreBug'); sb.hidden = !(P.loaded && $('drop').hidden);
-    if (!sb.hidden){ sb.innerHTML = `<span><span class="srv ${d.server==='me'&&!d.matchOver?'on':''}"></span>${esc(match.meta.me||'我')}</span><span class="pts">${d.a}–${d.b}</span><span>${esc(match.meta.opponent||'對手')}<span class="srv ${d.server==='op'&&!d.matchOver?'on':''}"></span></span><span class="g">第 ${d.game} 局 · 局 ${d.gm}–${d.go}</span>`; } }
+  curIdx = P.loaded ? pointIndexAt(d.rows, P.time) : -1;
+  renderScoreBug(d.rows, curIdx);
   const gh = $('gameHist'); gh.innerHTML = '';
   { const [sm, so] = startGames(); if (sm + so){ const s = document.createElement('span'); s.textContent = `前 ${sm + so} 局未錄（${sm}–${so}）`; s.title = '影片開始前已打完的局數'; gh.append(s); } }
   d.games.forEach(g => { const s = document.createElement('span'); s.className='mono'; s.textContent = `${g.me}–${g.op}`; gh.append(s); });
@@ -1233,13 +1286,15 @@ function renderBoard(){
   rows.forEach((r, i) => {
     const tr = document.createElement('tr');
     const idx = d.rows.length - i;
-    tr.innerHTML = `<td class="mono">${idx}${r.star?'<span class="star" title="好球"> ★</span>':''}</td><td class="mono">${r.game}</td><td class="mono">${r.score_me}–${r.score_op}${r.critical?' ·':''}</td>
+    tr.dataset.idx = idx - 1; if (idx - 1 === curIdx) tr.classList.add('cur');
+    tr.innerHTML = `<td><button type="button" class="starbtn${r.star?' on':''}" data-star="${idx-1}" title="${r.star?'取消好球':'標為好球'}" aria-pressed="${!!r.star}">★</button></td><td class="mono">${idx}</td><td class="mono">${r.game}</td><td class="mono">${r.score_me}–${r.score_op}${r.critical?' ·':''}</td>
       <td>${r.server==='me'?'我':'對'}</td><td class="${r.winner==='me'?'me':''}">${r.winner==='me'?'我':'對手'}</td>
       <td class="mono">${r.rally==null?'—':(r.rally>=10?'10+':r.rally)}</td><td>${endLabel(r.end_type, r.winner, r.server)}</td><td class="notecell" title="${esc(r.note||'')}">${esc(r.reason||'')}${r.note?`<span class="nt">${esc(r.note)}</span>`:''}</td>
       <td class="mono">${r.t_end==null?'—':fmtT(r.t_end)}</td>`;
     if (r.t_end != null){ tr.dataset.seek = pointStart(d.rows, idx-1); tr.title='跳到這一分'; }
     tb.append(tr);
   });
+  if (curIdx >= 0){ const cur = tb.querySelector('tr.cur'); if (cur){ const wrap = $('logwrap'), top = cur.offsetTop - wrap.offsetTop; if (top < wrap.scrollTop || top + cur.offsetHeight > wrap.scrollTop + wrap.clientHeight) wrap.scrollTop = Math.max(0, top - 8); } }
   $('matchTitleTop').textContent = (match.meta.title || '未命名比賽') + (isSample ? '（範例資料）' : '');
 }
 function renderAnnStats(){
@@ -1457,7 +1512,7 @@ function renderHighlights(rows){
   const stars = rows.filter(r => r.star);
   $('hlCount').textContent = stars.length;
   const box = $('hlList');
-  if (!stars.length){ box.innerHTML = '<p class="cap" style="margin:0">還沒有好球。標註時按 H，或在逐分紀錄最後一分用「H 上一分標好球」。</p>'; }
+  if (!stars.length){ box.innerHTML = '<p class="cap" style="margin:0">還沒有好球。標註時按 H；回頭看影片時，播放頭停在哪一分按 H 就標那一分，或點逐分紀錄每列前面的 ★。</p>'; }
   else box.innerHTML = '<table class="mtable"><thead><tr><th>#</th><th>局</th><th>比分</th><th>發</th><th>拍</th><th>結束</th><th>原因／備註</th><th>時間</th></tr></thead><tbody>' +
     stars.map(r => { const i = rows.indexOf(r), sk = pointStart(rows, i); return `<tr${sk!=null?` data-seek="${sk}" title="跳到這一分"`:''}><td class="mono">${i+1}</td><td class="mono">${r.game}</td><td class="mono">${r.score_me}–${r.score_op}</td><td>${r.server==='me'?'我':'對'}</td><td class="mono">${r.rally==null?'—':(r.rally>=10?'10+':r.rally)}</td><td>${endLabel(r.end_type,r.winner,r.server)}</td><td>${esc([r.reason, r.note].filter(Boolean).join('；'))}</td><td class="mono">${r.t_end!=null?fmtT(r.t_end):'—'}</td></tr>`; }).join('') + '</tbody></table>';
   const can = P.kind === 'file' && P.loaded && stars.some(r => r.t_end != null) && !exporting;
