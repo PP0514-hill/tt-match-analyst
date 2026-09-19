@@ -114,6 +114,12 @@ kbd{font-family:var(--pp-font-mono);font-size:12px;border:var(--bw) solid var(--
 .choice{display:grid;grid-template-columns:34px 1fr;align-items:center;gap:10px;padding:7px 10px;border:var(--bw) solid var(--pp-line);border-radius:var(--r-ctl);background:var(--pp-bg-card);cursor:pointer;text-align:left}
 .choice:hover{background:var(--pp-bg-card-sub)}
 .choice.sel{border-color:var(--pp-accent);background:var(--pp-accent-soft)}
+.choice.sug{border-color:var(--pp-line-strong)}
+.choice .sugtag{font-size:11px;color:var(--pp-accent-deep);margin-left:8px;white-space:nowrap}
+.vctl label.ck{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--pp-ink-sub);cursor:pointer}
+.vctl label.ck input{margin:0}
+.annstats{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px}
+.annstats .kpi .v{font-size:22px}
 .pend{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;min-height:28px}
 .chip{font-size:12px;padding:2px 9px;border-radius:6px;background:var(--pp-bg-card-sub);color:var(--pp-ink-sub);border:var(--bw) solid var(--pp-line)}
 .chip.on{background:var(--pp-accent-soft);color:var(--pp-accent-deep);border-color:transparent}
@@ -242,7 +248,7 @@ textarea.io{width:100%;min-height:160px;font-family:var(--pp-font-mono);font-siz
       <div id="ytHost" hidden></div>
       <div id="ytShield" hidden title="點擊：播放／暫停"></div>
       <div class="drop" id="drop">
-        <p>把比賽影片拖進來，或從電腦（含 Google Drive 桌面版同步資料夾）選檔。影片只在瀏覽器裡播放，不會上傳，也不會自動辨識畫面——載入後由你按鍵記分。</p>
+        <p>把比賽影片拖進來，或從電腦（含 Google Drive 桌面版同步資料夾）選檔。影片只在瀏覽器裡播放，不會上傳；載入後會在本機分析音軌切出回合，畫面判讀仍由你按鍵記分。</p>
         <div class="row" style="justify-content:center">
           <button class="btn" id="pickVideoBtn" type="button">選擇影片檔</button>
           <input type="file" id="videoFile" accept="video/*" hidden>
@@ -268,6 +274,7 @@ textarea.io{width:100%;min-height:160px;font-family:var(--pp-font-mono);font-siz
         <option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="1.5">1.5×</option><option value="2">2×</option>
       </select>
       <button class="btn small" id="btnSwap" type="button">更換影片來源</button>
+      <label class="ck" id="autoPauseWrap" hidden title="依擊球聲切出的回合，結束後自動暫停並問誰得分"><input type="checkbox" id="autoPause" checked>回合結束自動暫停</label>
       <span class="spacer"></span>
       <button class="btn small" id="btnUndo" type="button">復原上一分 (Backspace)</button>
     </div>
@@ -322,7 +329,7 @@ textarea.io{width:100%;min-height:160px;font-family:var(--pp-font-mono);font-siz
       <strong>影片已載入，等你開始記分。</strong>
       這一版不會自動分析畫面：畫面判讀交給你，頁面負責計分、發球輪替與統計。
       按 <kbd>Space</kbd> 播放，每一分結束時按 <kbd>A</kbd>（我得分）或 <kbd>L</kbd>（對手得分），接著照右側提示按一兩個鍵。
-      拍數想自動帶入，先用 <span class="mono">tt_rally_onsets.py</span> 跑出擊球時間戳，到〔比賽資料〕匯入。
+      本機影片載入後會自動分析音軌，切出回合、帶入拍數，回合結束會自動暫停問你誰得分。
       <button class="btn small" id="guideClose" type="button" style="margin-top:8px">知道了</button>
     </div>
 
@@ -463,9 +470,16 @@ textarea.io{width:100%;min-height:160px;font-family:var(--pp-font-mono);font-siz
         <input type="file" id="importFile" accept="application/json,.json" hidden>
       </div>
       <div class="row">
-        <button class="btn" id="btnOnsets" type="button">匯入擊球時間戳 rally-onsets.json</button>
+        <label class="f" style="min-width:160px">音訊靈敏度<select id="sensSel"><option value="0.25">低（手機收音小）</option><option value="0.35" selected>中（一般）</option><option value="0.5">高（轉播雜音多）</option></select></label>
+        <button class="btn" id="btnReanalyze" type="button" disabled>重新分析音軌</button>
+        <button class="btn" id="btnOnsets" type="button">匯入 onsets.json</button>
         <input type="file" id="onsetFile" accept="application/json,.json" hidden>
-        <span class="cap" id="onsetInfo">由 <span class="mono">tt_rally_onsets.py</span> 產生</span>
+      </div>
+      <span class="cap" id="onsetInfo">本機影片載入後自動分析；也可匯入 <span class="mono">tt_rally_onsets.py</span> 的輸出。</span>
+      <div>
+        <h3 style="margin-top:8px">標註效率</h3>
+        <p class="cap" style="margin:4px 0 10px">量「一場標完要多久」用的。每分從按下 A／L 到送出的秒數與動作數，只存在這場的 JSON 裡。</p>
+        <div class="annstats" id="annStats"></div>
       </div>
       <details>
         <summary class="cap" style="cursor:pointer">手動貼上／複製 JSON（無法下載時使用）</summary>
@@ -526,6 +540,9 @@ let match = newMatch();
 let pending = null;            // {winner, end_type, reason, rally, t_end}
 let rallyBuffer = null;        // digit pressed before A/L
 let onsets = null;             // {hits:[...], rallies:[...]}
+let lastVideoFile = null;      // 供重新分析音軌
+let audioJob = 0;              // 分析工作序號，載入新影片時作廢舊工作
+let autoPauseIdx = -1, prevT = 0;   // 自動暫停：上次暫停的回合序號、上一次 timeupdate 的時間
 let videoName = '';
 let downloadsNS = null, dbNS = null;
 let isSample = false;
@@ -594,8 +611,29 @@ const P = {
   toggle(){ if (!this.loaded) return; if (this.kind === 'yt') { this.paused ? this.yt.playVideo() : this.yt.pauseVideo(); } else { video.paused ? video.play() : video.pause(); } },
   setRate(r){ if (!this.loaded) return; if (this.kind === 'yt') this.yt.setPlaybackRate(r); else video.playbackRate = r; },
 };
-function onTime(){ $('tcur').textContent = fmtT(P.time); drawTimeline(); }
+function onTime(){ $('tcur').textContent = fmtT(P.time); checkAutoPause(P.time); drawTimeline(); }
+/* 回合結束自動暫停：播放頭越過某段回合 end＋0.8s 時暫停，只問誰得分。已記錄過的回合、目前正在輸入時不觸發。 */
+function checkAutoPause(t){
+  const rl = onsets && onsets.rallies;
+  if (!rl || !rl.length || !$('autoPause').checked || !P.loaded || P.paused || pending){ prevT = t; return; }
+  if (t < prevT){ prevT = t; autoPauseIdx = -1; return; }   // 往回拉，重設
+  const lastT = (!isSample && match.points.length) ? (match.points[match.points.length-1].t_end ?? -1) : -1;   // 範例資料不算已記錄
+  for (let i = 0; i < rl.length; i++){
+    const e = rl[i].end + 0.8;
+    if (e <= prevT) continue; if (e > t) break;
+    if (i === autoPauseIdx || rl[i].end <= lastT) continue;
+    P.toggle(); autoPauseIdx = i;
+    toast(`回合結束（${rl[i].hits} 拍）。誰得分？A 我／L 對手，Space 略過繼續`);
+    break;
+  }
+  prevT = t;
+}
+function leaveSample(){
+  if (!isSample) return;
+  const keep = {...match.meta, title:'', opponent:'', note:''}; match = newMatch(); match.meta = keep; isSample = false; pending = null; fillMeta(); save(); renderAll();
+}
 function afterLoad(label){
+  if (isSample){ leaveSample(); toast('已清除範例資料'); }
   $('drop').hidden = true; $('guide').hidden = false;
   if (!onsets) $('tlInfo').textContent = '影片就緒。紅向上＝我得分、黑向下＝對手得分、淡紅底＝關鍵分；拍數需手動輸入或匯入擊球時間戳。';
   $('tdur').textContent = fmtT(P.duration);
@@ -613,8 +651,8 @@ function loadVideoFile(file){
   if (video.src) URL.revokeObjectURL(video.src);
   P.kind = 'file'; video.hidden = false;
   video.src = URL.createObjectURL(file);
-  videoName = file.name;
-  video.addEventListener('loadedmetadata', () => afterLoad(file.name), {once:true});
+  videoName = file.name; lastVideoFile = file;
+  video.addEventListener('loadedmetadata', () => { afterLoad(file.name); analyzeAudio(file); }, {once:true});
 }
 $('pickVideoBtn').addEventListener('click', () => $('videoFile').click());
 $('videoFile').addEventListener('change', e => loadVideoFile(e.target.files[0]));
@@ -759,13 +797,138 @@ tl.addEventListener('click', e => {
 });
 window.addEventListener('resize', drawTimeline);
 
+/* ---------- audio：瀏覽器內擊球聲偵測與回合切分（tt_rally_onsets.py 的移植） ----------
+   流程：decodeAudioData 重採樣到 11.025 kHz 單聲道 → 4 階帶通 1.5–5 kHz（兩級 biquad）
+   → STFT 512／hop 128 的 log-power spectral flux（帶內頻率、中位數彙整）
+   → librosa.peak_pick 同義的峰值挑選（自適應門檻 med＋sens×(p99−med)）→ 靜默 gap 切回合。 */
+const AUDIO = {sr:11025, frame:512, hop:128, band:[1500,5000], minHitGap:0.18, gap:2.0, minHits:2, maxBytes:1.5e9};
+function fft(re, im){   // in-place radix-2
+  const n = re.length;
+  for (let i = 1, j = 0; i < n; i++){ let bit = n >> 1; for (; j & bit; bit >>= 1) j ^= bit; j ^= bit; if (i < j){ let t = re[i]; re[i] = re[j]; re[j] = t; t = im[i]; im[i] = im[j]; im[j] = t; } }
+  for (let len = 2; len <= n; len <<= 1){
+    const ang = -2 * Math.PI / len, wr = Math.cos(ang), wi = Math.sin(ang);
+    for (let i = 0; i < n; i += len){
+      let cr = 1, ci = 0;
+      for (let k = 0; k < len / 2; k++){
+        const ar = re[i+k], ai = im[i+k], br = re[i+k+len/2], bi = im[i+k+len/2];
+        const tr = br*cr - bi*ci, ti = br*ci + bi*cr;
+        re[i+k] = ar + tr; im[i+k] = ai + ti; re[i+k+len/2] = ar - tr; im[i+k+len/2] = ai - ti;
+        const ncr = cr*wr - ci*wi; ci = cr*wi + ci*wr; cr = ncr;
+      }
+    }
+  }
+}
+const yieldUI = () => new Promise(r => setTimeout(r, 0));
+async function decodeMono(file){
+  const bytes = await file.arrayBuffer();
+  let buf;
+  try { buf = await new OfflineAudioContext(1, 1, AUDIO.sr).decodeAudioData(bytes.slice(0)); }
+  catch(e){ const ac = new (window.AudioContext || window.webkitAudioContext)(); buf = await ac.decodeAudioData(bytes); ac.close?.(); }
+  const ch = buf.numberOfChannels, n = buf.length, sr0 = buf.sampleRate;
+  let mono = buf.getChannelData(0);
+  if (ch > 1){ mono = new Float32Array(mono); for (let c = 1; c < ch; c++){ const d = buf.getChannelData(c); for (let i = 0; i < n; i++) mono[i] += d[i]; } for (let i = 0; i < n; i++) mono[i] /= ch; }
+  if (sr0 !== AUDIO.sr){   // 退路：手動整數抽樣（先做簡單平均抗混疊）
+    const k = Math.max(1, Math.round(sr0 / AUDIO.sr)), m = Math.floor(n / k), out = new Float32Array(m);
+    for (let i = 0; i < m; i++){ let a = 0; for (let j = 0; j < k; j++) a += mono[i*k+j]; out[i] = a / k; }
+    return {data: out, sr: sr0 / k};
+  }
+  return {data: mono, sr: sr0};
+}
+async function bandpass(data, sr){
+  const oc = new OfflineAudioContext(1, data.length, sr);
+  const b = oc.createBuffer(1, data.length, sr); b.copyToChannel(data, 0);
+  const src = oc.createBufferSource(); src.buffer = b;
+  const mk = (type, f) => { const q = oc.createBiquadFilter(); q.type = type; q.frequency.value = f; q.Q.value = Math.SQRT1_2; return q; };
+  const hi = Math.min(AUDIO.band[1], sr/2 - 200);
+  src.connect(mk('highpass', AUDIO.band[0])).connect(mk('highpass', AUDIO.band[0])).connect(mk('lowpass', hi)).connect(mk('lowpass', hi)).connect(oc.destination);
+  src.start(); const out = await oc.startRendering(); return out.getChannelData(0);
+}
+async function onsetEnvelope(y, sr, progress){
+  const N = AUDIO.frame, H = AUDIO.hop, nF = Math.max(0, Math.floor((y.length - N) / H) + 1);
+  const win = new Float32Array(N); for (let i = 0; i < N; i++) win[i] = 0.5 - 0.5 * Math.cos(2*Math.PI*i/(N-1));
+  // 中位數取全頻譜（含帶通濾掉的頻點）：擊球是寬頻脈衝會把多數頻點一起抬高，窄頻雜訊只動少數頻點，中位數不動。與 librosa 128 mel 頻帶取中位數同理。
+  const k0 = 1, k1 = N / 2;
+  const nb = k1 - k0, re = new Float32Array(N), im = new Float32Array(N);
+  let prev = new Float32Array(nb), cur = new Float32Array(nb); const diff = new Float32Array(nb);
+  const env = new Float32Array(nF);
+  // 相當於 librosa power_to_db(ref=max, top_db=80)：以全域峰值振幅估最大頻點功率，低於其 80 dB 的一律截斷，底噪的起伏才不會變成「擊球」
+  let A = 0; for (let i = 0; i < y.length; i++){ const v = Math.abs(y[i]); if (v > A) A = v; }
+  const floorL = Math.log(Math.max(1e-12, (A * N / 4) ** 2)) - 80 / 10 * Math.LN10;
+  for (let f = 0; f < nF; f++){
+    const o = f * H;
+    for (let i = 0; i < N; i++){ re[i] = y[o+i] * win[i]; im[i] = 0; }
+    fft(re, im);
+    for (let k = k0; k < k1; k++) cur[k-k0] = Math.max(floorL, Math.log(1e-12 + re[k]*re[k] + im[k]*im[k]));
+    if (f){ for (let i = 0; i < nb; i++) diff[i] = Math.max(0, cur[i] - prev[i]); const sorted = diff.slice().sort(); env[f] = sorted[nb >> 1]; }
+    const t = prev; prev = cur; cur = t;
+    if ((f & 2047) === 2047){ progress(f / nF); await yieldUI(); }
+  }
+  return env;
+}
+function pickPeaks(env, sr, sens){
+  const hop = AUDIO.hop, wait = Math.max(1, Math.round(AUDIO.minHitGap * sr / hop));
+  const preMax = wait, postMax = wait, preAvg = wait*2, postAvg = wait*2;
+  const sorted = Float32Array.from(env).sort(); const q = p => sorted[Math.min(sorted.length-1, Math.floor(p * (sorted.length-1)))];
+  const med = q(0.5), p99 = q(0.99); if (!(sorted[sorted.length-1] > 0)) return [];
+  const delta = med + sens * (p99 - med);
+  const hits = []; let last = -Infinity;
+  for (let n = 0; n < env.length; n++){
+    const v = env[n]; if (v <= 0 || n - last <= wait) continue;
+    let mx = -Infinity; for (let i = Math.max(0, n-preMax); i <= Math.min(env.length-1, n+postMax); i++) if (env[i] > mx) mx = env[i];
+    if (v < mx) continue;
+    let sum = 0, cnt = 0; for (let i = Math.max(0, n-preAvg); i <= Math.min(env.length-1, n+postAvg); i++){ sum += env[i]; cnt++; }
+    if (v < sum / cnt + delta) continue;
+    hits.push(+((n * hop) / sr).toFixed(2)); last = n;
+  }
+  return hits;
+}
+function groupRallies(hits, gap, minHits){
+  const out = []; if (!hits.length) return out;
+  let start = hits[0], prev = hits[0], n = 1;
+  for (const t of hits.slice(1)){ if (t - prev > gap){ if (n >= minHits) out.push({start, end: prev, hits: n}); start = t; n = 0; } n++; prev = t; }
+  if (n >= minHits) out.push({start, end: prev, hits: n});
+  return out;
+}
+async function analyzeAudio(file){
+  if (!file) return;
+  const job = ++audioJob; const sens = +($('sensSel').value || 0.35);
+  const info = $('onsetInfo'), tl = $('tlInfo');
+  $('btnReanalyze').disabled = true;
+  if (file.size > AUDIO.maxBytes){ info.textContent = '影片超過 1.5 GB，瀏覽器內不分析音軌；請用 tt_rally_onsets.py 產生 onsets.json 匯入。'; $('btnReanalyze').disabled = false; return; }
+  const t0 = performance.now();
+  const say = m => { if (job === audioJob){ info.textContent = m; tl.textContent = m; } };
+  try {
+    say('分析音軌：解碼中……');
+    const {data, sr} = await decodeMono(file); if (job !== audioJob) return;
+    say('分析音軌：帶通濾波……');
+    const y = await bandpass(data, sr); if (job !== audioJob) return;
+    const env = await onsetEnvelope(y, sr, p => say(`分析音軌：偵測擊球聲 ${Math.round(p*100)}%`)); if (job !== audioJob) return;
+    const hits = pickPeaks(env, sr, sens);
+    const rallies = groupRallies(hits, AUDIO.gap, AUDIO.minHits);
+    onsets = {source: file.name, duration: +(data.length / sr).toFixed(2), engine: 'web-audio', params: {band: AUDIO.band, sens, min_hit_gap: AUDIO.minHitGap, gap: AUDIO.gap, min_hits: AUDIO.minHits, sr}, hits, rallies};
+    autoPauseIdx = -1;
+    const secs = ((performance.now() - t0) / 1000).toFixed(1);
+    info.textContent = `已分析：${hits.length} 次擊球、${rallies.length} 段回合（靈敏度 ${sens}，${secs} 秒）`;
+    tl.textContent = `擊球聲 ${hits.length} 筆、回合 ${rallies.length} 段；標分時自動帶入拍數，回合結束會自動暫停`;
+    $('autoPauseWrap').hidden = !rallies.length;
+    drawTimeline(); toast(`音軌分析完成：${rallies.length} 段回合`);
+  } catch(e){
+    info.textContent = '這個檔案的音軌無法在瀏覽器內解碼（' + (e && e.message || e) + '）。可改用 tt_rally_onsets.py 產生 onsets.json 匯入。';
+    tl.textContent = '影片就緒。音軌無法分析，拍數需手動輸入。';
+  } finally { if (job === audioJob) $('btnReanalyze').disabled = !lastVideoFile; }
+}
+$('btnReanalyze').addEventListener('click', () => analyzeAudio(lastVideoFile));
+$('sensSel').addEventListener('change', () => { if (lastVideoFile) analyzeAudio(lastVideoFile); });
+try { $('autoPause').checked = localStorage.getItem(LS_KEY+':autopause') !== '0'; } catch(e){}
+$('autoPause').addEventListener('change', () => { try { localStorage.setItem(LS_KEY+':autopause', $('autoPause').checked ? '1' : '0'); } catch(e){} });
+
 /* ---------- annotation flow ---------- */
 function currentServer(){ return derive().server; }
 function startPoint(winner){
-  if (isSample){ const keep = {...match.meta, title:'', opponent:'', note:''}; match = newMatch(); match.meta = keep; isSample = false; fillMeta(); toast('已清除範例資料，開始新比賽'); }
+  if (isSample){ leaveSample(); toast('已清除範例資料，開始新比賽'); }
   const d = derive();
   if (d.matchOver){ toast('依局制比賽已結束。要繼續記錄請到〔比賽資料〕改局制（可選「練習（不限局數）」）。'); return; }
-  pending = {winner, server:d.server, end_type:null, reason:null, note:'', stage:'end', rally: rallyBuffer, t_end: P.loaded ? +P.time.toFixed(2) : null};
+  pending = {winner, server:d.server, end_type:null, reason:null, note:'', stage:'end', rally: rallyBuffer, t_end: P.loaded ? +P.time.toFixed(2) : null, t0: performance.now(), keys: 1};
   rallyBuffer = null;
   if (pending.rally == null && onsets && pending.t_end != null){
     const prev = match.points.length ? (match.points[match.points.length-1].t_end ?? 0) : 0;
@@ -774,13 +937,22 @@ function startPoint(winner){
   }
   renderStep();
 }
+/* 依拍數建議結束方式：1 拍＝發球直接分勝負；2 拍且發球方贏＝接發失誤（吃發球）。其餘不猜。 */
+function suggestEnd(p){
+  if (!p || p.rally == null) return null;
+  const serverWon = p.winner === p.server;
+  if (p.rally <= 1) return serverWon ? 'R' : 'T';
+  if (p.rally === 2 && serverWon) return 'R';
+  return null;
+}
+function bump(){ if (pending) pending.keys = (pending.keys || 0) + 1; }
 function validEnds(p){
   // R（發球得分／吃發球）只在發球方贏時成立；T（發球失誤）只在發球方輸時成立
   const serverWon = p.winner === p.server;
   return ['Q','W','E', serverWon ? 'R' : 'T'];
 }
 function setEnd(code){
-  if (!pending || pending.stage !== 'end') return;
+  if (!pending || pending.stage !== 'end') return; bump();
   if (!validEnds(pending).includes(code)) { toast(code==='R' ? '發球方沒贏這分，請用 T 發球失誤' : '發球方贏了這分，請用 R 發球得分'); return; }
   pending.end_type = ENDS[code];
   if (pending.end_type === 'serve_win' || pending.end_type === 'serve_fault') { if (pending.rally == null) pending.rally = pending.end_type==='serve_fault' ? 1 : 2; }
@@ -789,17 +961,19 @@ function setEnd(code){
   commit();
 }
 function setReason(code){
-  if (!pending || pending.stage !== 'reason') return;
+  if (!pending || pending.stage !== 'reason') return; bump();
   if (code === REASON_OTHER_KEY){ pending.stage = 'reason_text'; renderStep(); return; }
   pending.reason = REASONS[code];
   commit();
 }
 function setRally(n){
-  if (pending){ pending.rally = n; pending.rally_auto = false; renderStep(); }
+  if (pending){ pending.rally = n; pending.rally_auto = false; bump(); renderStep(); }
   else { rallyBuffer = n; renderStep(); }
 }
 function commit(){
   const p = {winner:pending.winner, end_type:pending.end_type, reason:pending.reason, note:pending.note || '', rally:pending.rally ?? null, t_end:pending.t_end};
+  if (pending.t0){ p.ann = {keys: pending.keys || 1, sec: +((performance.now() - pending.t0) / 1000).toFixed(1)}; }
+  match.ann = match.ann || {}; const now = Date.now(); if (!match.ann.first) match.ann.first = now; match.ann.last = now;
   match.points.push(p);
   pending = null;
   isSample = false;
@@ -827,7 +1001,7 @@ function editLastNote(){
   noteTarget = match.points.length - 1; renderStep();
 }
 function submitText(value){
-  const v = value.trim();
+  const v = value.trim(); bump();
   if (pending){
     if (pending.stage === 'reason_text'){ if (!v){ pending.stage = 'reason'; renderStep(); return; } pending.reason = v; commit(); return; }
     if (pending.stage === 'note'){ pending.note = v; commit(); return; }
@@ -866,6 +1040,7 @@ function handleKey(e){
   if (!annotOn) return;
   if (k === 'Backspace'){ e.preventDefault(); undo(); return; }
   if (k === 'Escape'){ cancelPending(); return; }
+  if (k === 'Enter' && pending && pending.stage === 'end'){ const sg = suggestEnd(pending); if (sg){ e.preventDefault(); setEnd(sg); } return; }
   if (!K) return;
   if (K === 'A'){ if (!pending) startPoint('me'); return; }
   if (K === 'L'){ if (!pending) startPoint('op'); return; }
@@ -911,7 +1086,12 @@ function renderStep(){
     if (pending.stage === 'end'){
       $('stepLabel').textContent = '結束方式';
       q.textContent = '這一分怎麼結束的？';
-      for (const code of validEnds(pending)) ch.append(choiceBtn(code, endLabel(ENDS[code], pending.winner, pending.server), () => setEnd(code)));
+      const sg = suggestEnd(pending);
+      for (const code of validEnds(pending)){
+        const b = choiceBtn(code, endLabel(ENDS[code], pending.winner, pending.server), () => setEnd(code));
+        if (code === sg){ b.classList.add('sug'); const tag = document.createElement('span'); tag.className = 'sugtag'; tag.textContent = `依 ${pending.rally} 拍建議，Enter 採用`; b.lastChild.append(tag); }
+        ch.append(b);
+      }
     } else if (pending.stage === 'reason'){
       $('stepLabel').textContent = '我的失誤原因';
       chips.push(chip(endLabel(pending.end_type, pending.winner, pending.server), true));
@@ -980,7 +1160,19 @@ function renderBoard(){
   });
   $('matchTitleTop').textContent = (match.meta.title || '未命名比賽') + (isSample ? '（範例資料）' : '');
 }
-function renderAll(){ renderBoard(); renderStep(); drawTimeline(); if (!$('pane-analysis').hidden) renderAnalysis(); }
+function renderAnnStats(){
+  const el = $('annStats'); el.innerHTML = '';
+  const withAnn = match.points.filter(p => p.ann);
+  if (!withAnn.length){ el.innerHTML = '<span class="cap">這場還沒有標註計時資料。</span>'; return; }
+  const avgKeys = withAnn.reduce((s,p) => s + p.ann.keys, 0) / withAnn.length;
+  const avgSec = withAnn.reduce((s,p) => s + p.ann.sec, 0) / withAnn.length;
+  const span = match.ann && match.ann.first && match.ann.last ? (match.ann.last - match.ann.first) / 60000 : null;
+  const vid = P.duration ? P.duration / 60 : null;
+  el.append(kpi(avgKeys.toFixed(1), '每分動作數', `${withAnn.length} 分有紀錄`), kpi(avgSec.toFixed(1) + ' s', '每分輸入耗時', '按 A／L 到送出'),
+    kpi(span != null ? span.toFixed(1) + ' 分' : '—', '標註總時長', '第一分到最後一分'),
+    kpi(span != null && vid ? (span / vid).toFixed(2) + '×' : '—', '總時長／影片長度', vid ? `影片 ${vid.toFixed(0)} 分` : '未載入影片'));
+}
+function renderAll(){ renderBoard(); renderStep(); drawTimeline(); renderAnnStats(); if (!$('pane-analysis').hidden) renderAnalysis(); }
 
 /* ---------- analysis ---------- */
 const pct = (n, d) => d ? Math.round(100*n/d) + '%' : '—';
@@ -1282,6 +1474,7 @@ $('onsetFile').addEventListener('change', e => { const f = e.target.files[0]; if
   const o = JSON.parse(t); if (!Array.isArray(o.hits)) throw new Error('缺 hits');
   onsets = o; $('onsetInfo').textContent = `已載入：${o.hits.length} 次擊球、${(o.rallies||[]).length} 段回合${o.source?'（'+o.source+'）':''}`;
   $('tlInfo').textContent = `擊球時間戳 ${o.hits.length} 筆；標分時自動帶入拍數`;
+  $('autoPauseWrap').hidden = !(o.rallies && o.rallies.length); autoPauseIdx = -1;
   drawTimeline(); toast('已載入擊球時間戳');
 }).catch(err => toast('無法解析：' + err.message)); e.target.value=''; });
 
@@ -1352,6 +1545,9 @@ async function listCloud(){
       box.append(it); });
   } catch(e){ box.innerHTML = '<span class="cap">無法讀取雲端存檔。</span>'; }
 }
+
+/* ---------- 測試用除錯鉤子（唯讀） ---------- */
+window.ttDebug = () => ({onsets, pending, match, isSample, autoPauseIdx, prevT, loaded: P.loaded, paused: P.paused, autoPause: $('autoPause').checked});
 
 /* ---------- boot ---------- */
 if (!restore()) loadSample();
