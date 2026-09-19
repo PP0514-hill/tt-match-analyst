@@ -183,6 +183,10 @@ kbd{font-family:var(--pp-font-mono);font-size:12px;border:var(--bw) solid var(--
 .log tr:hover td{background:var(--pp-bg-card-sub)}
 .log .me{color:var(--pp-accent-deep)}
 .log .star{color:var(--pp-accent)}
+.cap.warn{color:var(--pp-accent-deep)}
+.mt-wrap{overflow-x:auto;margin-top:12px}
+.mt-wrap .mtable th,.mt-wrap .mtable td{white-space:nowrap}
+.mt-wrap+.mt-wrap{margin-top:20px}
 .log tr.cur td{background:var(--pp-accent-soft)}
 .log tr.cur td:first-child{box-shadow:inset 3px 0 0 var(--pp-accent)}
 .starbtn{border:0;background:none;cursor:pointer;color:var(--pp-line-strong);font-size:15px;line-height:1;padding:2px 6px;border-radius:4px}
@@ -614,9 +618,15 @@ textarea.io{width:100%;min-height:160px;font-family:var(--pp-font-mono);font-siz
       <div class="row">
         <button class="btn" id="btnExport" type="button">匯出比賽 JSON</button>
         <button class="btn" id="btnExportCsv" type="button">匯出逐分 CSV</button>
+        <button class="btn" id="btnExportMd" type="button">匯出復盤報告 Markdown</button>
         <button class="btn" id="btnImport" type="button">匯入比賽 JSON</button>
         <input type="file" id="importFile" accept="application/json,.json" hidden>
       </div>
+      <div class="row">
+        <button class="btn accent" id="btnCopyAI" type="button">複製給 AI 分析</button>
+        <span class="cap" id="exportState"></span>
+      </div>
+      <p class="cap" style="margin:0">檔名為「日期-對手代號」。「複製給 AI 分析」會把這場的資料連同欄位說明複製到剪貼簿，貼到 Claude 或 ChatGPT 就能問問題。</p>
       <div class="row">
         <label class="f" style="min-width:160px">音訊靈敏度<select id="sensSel"><option value="0.25">低（手機收音小）</option><option value="0.35" selected>中（一般）</option><option value="0.5">高（轉播雜音多）</option></select></label>
         <button class="btn" id="btnReanalyze" type="button" disabled>重新分析音軌</button>
@@ -645,6 +655,21 @@ textarea.io{width:100%;min-height:160px;font-family:var(--pp-font-mono);font-siz
       </div>
     </div>
   </div>
+
+  <div class="card" id="multiCard" style="margin-top:20px">
+    <div class="row" style="justify-content:space-between">
+      <h2>多場趨勢</h2>
+      <span class="cap">選多個匯出的比賽 JSON，看跨場變化。檔案只在這台電腦讀取，不會上傳，也不影響目前這場。</span>
+    </div>
+    <div class="row" style="margin-top:12px">
+      <button class="btn" id="btnMulti" type="button">選擇多個比賽 JSON</button>
+      <input type="file" id="multiFile" accept="application/json,.json" multiple hidden>
+      <button class="btn small" id="btnMultiClear" type="button" hidden>清除</button>
+      <span class="cap" id="multiInfo"></span>
+    </div>
+    <div id="multiOut"></div>
+  </div>
+
   <p class="hint" style="margin:20px 0 0">頁面會自動把進行中的比賽存在這台電腦的瀏覽器裡；換裝置前請先匯出 JSON。</p>
 </section>
 
@@ -1177,6 +1202,7 @@ function setRally(n){
   else { rallyBuffer = n; renderStep(); }
 }
 function commit(){
+  const wasOver = derive().matchOver;
   const p = {winner:pending.winner, end_type:pending.end_type, reason:pending.reason, note:pending.note || '', rally:pending.rally ?? null, t_end:pending.t_end};
   if (pending.star) p.star = true;
   if (pending.t0){ p.ann = {keys: pending.keys || 1, sec: +((performance.now() - pending.t0) / 1000).toFixed(1)}; }
@@ -1187,7 +1213,8 @@ function commit(){
   save(); renderAll();
   const d = derive();
   const last = d.rows[d.rows.length-1];
-  if (gameOver(last.after_me, last.after_op)) toast(`第 ${last.game} 局結束 ${last.after_me}–${last.after_op}`);
+  if (!wasOver && d.matchOver) toast(`比賽結束 ${d.gm}–${d.go}。記得到〔比賽資料〕匯出 JSON 備份。`);
+  else if (gameOver(last.after_me, last.after_op)) toast(`第 ${last.game} 局結束 ${last.after_me}–${last.after_op}`);
 }
 function cancelPending(){ pending = null; rallyBuffer = null; noteTarget = null; renderStep(); }
 function undo(){
@@ -1416,10 +1443,11 @@ function renderAnnStats(){
     kpi(span != null ? span.toFixed(1) + ' 分' : '—', '標註總時長', '第一分到最後一分'),
     kpi(span != null && vid ? (span / vid).toFixed(2) + '×' : '—', '總時長／影片長度', vid ? `影片 ${vid.toFixed(0)} 分` : '未載入影片'));
 }
-function renderAll(){ renderBoard(); renderSetup(); renderStep(); drawTimeline(); renderAnnStats(); if (!$('pane-analysis').hidden) renderAnalysis(); }
+function renderAll(){ renderBoard(); renderSetup(); renderStep(); drawTimeline(); renderAnnStats(); renderExportState(); if (!$('pane-analysis').hidden) renderAnalysis(); }
 
 /* ---------- analysis ---------- */
 const pct = (n, d) => d ? Math.round(100*n/d) + '%' : '—';
+let lastInsights = [];   // 供 Markdown 報告取用
 function renderAnalysis(){
   const d = derive(); const rows = d.rows;
   $('anaTitle').textContent = (match.meta.title || '未命名比賽') + (isSample ? '　範例資料' : '');
@@ -1592,10 +1620,152 @@ function renderAnalysis(){
     const a0 = l0.filter(r=>r.reason==='選擇太冒進').length, a2 = l2.filter(r=>r.reason==='選擇太冒進').length;
     if (l0.length >= 5 && l2.length >= 5 && a2 >= a0 + 2) ins.push([`後段「選擇太冒進」從 ${a0} 次升到 ${a2} 次。`, '比賽階段漂移']); }
   if (best >= 4){ const r0 = rows[bestAt]; ins.push([`最長一次連失 ${best} 分，發生在第 ${r0.game} 局 ${r0.score_me}–${r0.score_op}。`, '連續失分']); }
+  lastInsights = ins;
   const ol = $('insights'); ol.innerHTML = '';
   if (!ins.length) ol.innerHTML = '<li class="quiet">各項指標都在門檻內，沒有特別突出的訊號。樣本少的時候這很正常。</li>';
   else ins.slice(0,6).forEach(([t, where]) => { const li = document.createElement('li'); li.textContent = t; const w = document.createElement('span'); w.className = 'where'; w.textContent = '→ ' + where; li.append(w); ol.append(li); });
 }
+/* ---------- Markdown 復盤報告 ---------- */
+function mdCell(t){ return String(t ?? '').replace(/\|/g,'\\|').replace(/\s*\n+\s*/g,' ').trim(); }
+function exportMarkdown(){
+  const d = derive(), rows = d.rows;
+  if (!rows.length){ toast('還沒有資料'); return; }
+  renderAnalysis();   // 讓 lastInsights 是最新的
+  const m = match.meta, fixed = Object.values(REASONS);
+  const won = rows.filter(r=>r.winner==='me'), lost = rows.filter(r=>r.winner==='op');
+  const srv = rows.filter(r=>r.server==='me'), rcv = rows.filter(r=>r.server==='op');
+  const crit = rows.filter(r=>r.critical), myErr = lost.filter(r=>r.end_type!=='winner');
+  const rl = rows.filter(r=>r.rally!=null);
+  const L = [];
+  L.push(`# ${mdCell(m.title) || '桌球比賽復盤'}`, '');
+  L.push('| 項目 | 內容 |', '|---|---|');
+  L.push(`| 日期 | ${mdCell(m.date) || '—'} |`);
+  L.push(`| 對手 | ${mdCell(m.opponent) || '—'} |`);
+  L.push(`| 局制 | ${!m.best_of ? '練習（不限局數）' : m.best_of === 1 ? '單局' : `${m.best_of} 戰 ${Math.ceil(m.best_of/2)} 勝`}，每局 ${gameTo()} 分 |`);
+  L.push(`| 結果 | ${d.matchOver ? (d.gm>d.go?'勝':'負') : '未完成'} ${d.gm}–${d.go} |`);
+  if (d.games.length) L.push(`| 各局比分 | ${d.games.map(g=>`${g.me}–${g.op}`).join('、')} |`);
+  L.push(`| 記錄分數 | ${rows.length} 分 |`);
+  if (m.note) L.push(`| 場地與狀態 | ${mdCell(m.note)} |`);
+  L.push('', '## 重點', '');
+  if (lastInsights.length) lastInsights.slice(0,6).forEach(([t, where], i) => L.push(`${i+1}. ${t}（見：${where}）`));
+  else L.push('各項指標都在門檻內，沒有特別突出的訊號。樣本少的時候這很正常。');
+  L.push('', '## 數據', '', '| 指標 | 數值 |', '|---|---|');
+  L.push(`| 總得分率 | ${pct(won.length, rows.length)}（${won.length}／${rows.length}） |`);
+  L.push(`| 發球輪得分率 | ${pct(srv.filter(r=>r.winner==='me').length, srv.length)}（${srv.length} 分） |`);
+  L.push(`| 接發輪得分率 | ${pct(rcv.filter(r=>r.winner==='me').length, rcv.length)}（${rcv.length} 分） |`);
+  L.push(`| 關鍵分得分率 | ${pct(crit.filter(r=>r.winner==='me').length, crit.length)}（${crit.length} 分） |`);
+  L.push(`| 失分中屬我方失誤 | ${pct(myErr.length, lost.length)}（${myErr.length}／${lost.length}） |`);
+  L.push(`| 平均拍數 | ${rl.length ? (rl.reduce((s,r)=>s+r.rally,0)/rl.length).toFixed(1) : '—'} |`);
+  const byGame = {}; rows.forEach(r => (byGame[r.game] = byGame[r.game] || []).push(r));
+  L.push('', '## 局次總覽', '', '| 局 | 比分 | 得分率 | 發球輪 | 接發輪 | 關鍵分 | 我方失誤占失分 | 主要失誤原因 |', '|---|---|---|---|---|---|---|---|');
+  for (const g of Object.keys(byGame).map(Number).sort((a,b)=>a-b)){
+    const rs = byGame[g], fin = d.games.find(G=>G.game===g), l = rs.filter(r=>r.winner==='op');
+    const errs = l.filter(r=>r.end_type!=='winner'), rc = {};
+    errs.forEach(r => { const k = r.reason || '未標'; rc[k] = (rc[k]||0)+1; });
+    const top = Object.entries(rc).sort((a,b)=>b[1]-a[1])[0], lastR = rs[rs.length-1];
+    L.push(`| ${g} | ${fin?`${fin.me}–${fin.op}`:`${lastR.after_me}–${lastR.after_op}（未完）`} | ${pct(rs.filter(r=>r.winner==='me').length, rs.length)} | ` +
+      `${pct(rs.filter(r=>r.server==='me'&&r.winner==='me').length, rs.filter(r=>r.server==='me').length)} | ${pct(rs.filter(r=>r.server==='op'&&r.winner==='me').length, rs.filter(r=>r.server==='op').length)} | ` +
+      `${pct(rs.filter(r=>r.critical&&r.winner==='me').length, rs.filter(r=>r.critical).length)} | ${pct(errs.length, l.length)} | ${top ? `${mdCell(top[0])} ${top[1]} 次` : '—'} |`);
+  }
+  const withReason = myErr.filter(r=>r.reason), others = withReason.filter(r=>!fixed.includes(r.reason));
+  L.push('', '## 我方失誤原因', '', '| 原因 | 次數 | 占我方失誤 |', '|---|---|---|');
+  fixed.forEach(v => { const n = withReason.filter(r=>r.reason===v).length; L.push(`| ${v} | ${n} | ${pct(n, myErr.length)} |`); });
+  if (others.length) L.push(`| 其他（手寫） | ${others.length} | ${pct(others.length, myErr.length)} |`);
+  if (myErr.length - withReason.length > 0) L.push(`| 未標原因 | ${myErr.length - withReason.length} | ${pct(myErr.length - withReason.length, myErr.length)} |`);
+  const stars = rows.filter(r=>r.star);
+  if (stars.length){
+    L.push('', '## 好球', '', '| 局 | 比分 | 結束方式 | 備註 | 影片時間 |', '|---|---|---|---|---|');
+    stars.forEach(r => L.push(`| ${r.game} | ${r.score_me}–${r.score_op} | ${endLabel(r.end_type, r.winner, r.server)} | ${mdCell(r.note) || '—'} | ${r.t_end!=null?fmtT(r.t_end):'—'} |`));
+  }
+  const notes = rows.filter(r => (r.reason && !fixed.includes(r.reason)) || (r.note && !r.star));
+  if (notes.length){
+    L.push('', '## 手寫原因與備註', '', '| 局 | 比分 | 結束方式 | 內容 | 影片時間 |', '|---|---|---|---|---|');
+    notes.forEach(r => L.push(`| ${r.game} | ${r.score_me}–${r.score_op} | ${endLabel(r.end_type, r.winner, r.server)} | ${mdCell([r.reason && !fixed.includes(r.reason) ? r.reason : '', r.note].filter(Boolean).join('；'))} | ${r.t_end!=null?fmtT(r.t_end):'—'} |`));
+  }
+  const R = match.reflections || {};
+  const secs = [['overall','整體'],['games','局與局之間'],['points','得失分'],['mind','心態與節奏']].filter(([k]) => (R[k]||'').trim());
+  if (secs.length){ L.push('', '## 心得', ''); secs.forEach(([k, lab]) => L.push(`### ${lab}`, '', R[k].trim(), '')); }
+  L.push('', '---', '', `由「再來一顆｜桌球逐分復盤」匯出，${new Date().toISOString().slice(0,10)}。分析為依固定門檻規則產生的統計；行為代理指標是行為統計，不是心理狀態判定。`);
+  offerDownload(fileStem() + '-report.md', L.join('\n') + '\n', 'text/markdown');
+}
+$('btnExportMd').addEventListener('click', exportMarkdown);
+
+/* ---------- 多場趨勢 ---------- */
+let multiMatches = [];
+function withMatch(m, fn){ const keep = match; match = m; try { return fn(); } finally { match = keep; } }
+function statsOf(m){
+  const d = withMatch(m, () => derive()), rows = d.rows;
+  const lost = rows.filter(r=>r.winner==='op');
+  return {m, d, rows,
+    won: rows.filter(r=>r.winner==='me'), lost,
+    srv: rows.filter(r=>r.server==='me'), rcv: rows.filter(r=>r.server==='op'),
+    crit: rows.filter(r=>r.critical), myErr: lost.filter(r=>r.end_type!=='winner'),
+    rl: rows.filter(r=>r.rally!=null)};
+}
+$('btnMulti').addEventListener('click', () => $('multiFile').click());
+$('btnMultiClear').addEventListener('click', () => { multiMatches = []; $('multiInfo').textContent = ''; $('btnMultiClear').hidden = true; $('multiOut').innerHTML = ''; });
+$('multiFile').addEventListener('change', async e => {
+  const files = [...e.target.files]; e.target.value = '';
+  if (!files.length) return;
+  const ok = [], bad = [];
+  for (const f of files){
+    try {
+      const o = JSON.parse(await f.text());
+      if (!o || !Array.isArray(o.points) || !o.points.length) throw new Error('沒有逐分資料');
+      ok.push({...newMatch(), ...o, meta:{...newMatch().meta, ...(o.meta||{})}, game_first_server_override:o.game_first_server_override||{}, _file:f.name});
+    } catch(err){ bad.push(f.name); }
+  }
+  multiMatches = ok.sort((a,b) => String(a.meta.date||'').localeCompare(String(b.meta.date||'')));
+  $('multiInfo').textContent = `已載入 ${multiMatches.length} 場${bad.length ? `，${bad.length} 個檔案讀不到逐分資料（${bad.join('、')}）` : ''}`;
+  $('btnMultiClear').hidden = !multiMatches.length;
+  renderMulti();
+});
+function renderMulti(){
+  const box = $('multiOut'); box.innerHTML = '';
+  if (!multiMatches.length) return;
+  const all = multiMatches.map(statsOf), fixed = Object.values(REASONS);
+  const avgR = st => st.rl.length ? (st.rl.reduce((s,r)=>s+r.rally,0)/st.rl.length).toFixed(1) : '—';
+  const S = k => all.reduce((s, st) => s + st[k].length, 0);
+  const SW = k => all.reduce((s, st) => s + st[k].filter(r=>r.winner==='me').length, 0);
+  let h = '<div class="mt-wrap"><table class="mtable" id="multiTable"><thead><tr><th>日期</th><th>對手</th><th>結果</th><th>分數</th><th>總得分率</th><th>發球輪</th><th>接發輪</th><th>關鍵分</th><th>我方失誤占失分</th><th>平均拍數</th></tr></thead><tbody>';
+  for (const st of all){
+    const d = st.d, m = st.m.meta;
+    h += `<tr><td class="mono">${esc(m.date||'—')}</td><td>${esc(m.opponent||m.title||st.m._file||'—')}</td>` +
+      `<td class="mono">${d.matchOver ? (d.gm>d.go?'勝':'負') : '未完'} ${d.gm}–${d.go}</td><td class="mono">${st.rows.length}</td>` +
+      `<td class="mono">${pct(st.won.length, st.rows.length)}</td><td class="mono">${pct(st.srv.filter(r=>r.winner==='me').length, st.srv.length)}</td>` +
+      `<td class="mono">${pct(st.rcv.filter(r=>r.winner==='me').length, st.rcv.length)}</td><td class="mono">${pct(st.crit.filter(r=>r.winner==='me').length, st.crit.length)}</td>` +
+      `<td class="mono">${pct(st.myErr.length, st.lost.length)}</td><td class="mono">${avgR(st)}</td></tr>`;
+  }
+  const allRl = all.flatMap(st => st.rl);
+  h += `<tr><td class="cap">合計 ${all.length} 場</td><td></td><td class="mono">${all.filter(st=>st.d.matchOver&&st.d.gm>st.d.go).length} 勝 ${all.filter(st=>st.d.matchOver&&st.d.gm<st.d.go).length} 負</td><td class="mono">${S('rows')}</td>` +
+    `<td class="mono">${pct(S('won'), S('rows'))}</td><td class="mono">${pct(SW('srv'), S('srv'))}</td><td class="mono">${pct(SW('rcv'), S('rcv'))}</td><td class="mono">${pct(SW('crit'), S('crit'))}</td>` +
+    `<td class="mono">${pct(S('myErr'), S('lost'))}</td><td class="mono">${allRl.length ? (allRl.reduce((s,r)=>s+r.rally,0)/allRl.length).toFixed(1) : '—'}</td></tr></tbody></table></div>`;
+  h += '<div class="mt-wrap"><table class="mtable" id="multiReason"><thead><tr><th>我方失誤原因</th>' +
+    all.map(st => `<th>${esc(st.m.meta.date || st.m.meta.opponent || '—')}</th>`).join('') + '<th>合計</th></tr></thead><tbody>';
+  const rowFor = (label, pick) => {
+    const tot = all.reduce((s, st) => s + st.myErr.filter(pick).length, 0);
+    return `<tr><td>${esc(label)}</td>` + all.map(st => `<td class="mono">${pct(st.myErr.filter(pick).length, st.myErr.length)}</td>`).join('') + `<td class="mono">${pct(tot, S('myErr'))}</td></tr>`;
+  };
+  fixed.forEach(v => h += rowFor(v, r => r.reason === v));
+  h += rowFor('其他（手寫）', r => r.reason && !fixed.includes(r.reason));
+  h += rowFor('未標原因', r => !r.reason);
+  h += `<tr><td class="cap">我方失誤數</td>` + all.map(st => `<td class="mono">${st.myErr.length}</td>`).join('') + `<td class="mono">${S('myErr')}</td></tr></tbody></table></div>`;
+  const byOpp = {}; all.forEach(st => { const k = (st.m.meta.opponent || '').trim(); if (k) (byOpp[k] = byOpp[k] || []).push(st); });
+  const multi = Object.entries(byOpp).filter(([, v]) => v.length >= 2);
+  if (multi.length){
+    h += '<div class="mt-wrap"><table class="mtable" id="multiOpp"><thead><tr><th>對手</th><th>場次</th><th>戰績</th><th>總得分率</th><th>發球輪</th><th>接發輪</th><th>關鍵分</th><th>我方失誤占失分</th></tr></thead><tbody>';
+    for (const [name, sts] of multi){
+      const s2 = k => sts.reduce((s, st) => s + st[k].length, 0), w2 = k => sts.reduce((s, st) => s + st[k].filter(r=>r.winner==='me').length, 0);
+      h += `<tr><td>${esc(name)}</td><td class="mono">${sts.length}</td><td class="mono">${sts.filter(st=>st.d.matchOver&&st.d.gm>st.d.go).length} 勝 ${sts.filter(st=>st.d.matchOver&&st.d.gm<st.d.go).length} 負</td>` +
+        `<td class="mono">${pct(s2('won'), s2('rows'))}</td><td class="mono">${pct(w2('srv'), s2('srv'))}</td><td class="mono">${pct(w2('rcv'), s2('rcv'))}</td>` +
+        `<td class="mono">${pct(w2('crit'), s2('crit'))}</td><td class="mono">${pct(s2('myErr'), s2('lost'))}</td></tr>`;
+    }
+    h += '</tbody></table></div>';
+  }
+  h += '<p class="cap" style="margin:12px 0 0">百分比以各場自己的分母計算。場次之間分數差距大時請留意樣本量；局制或每局分數不同的比賽放在一起比較要小心。</p>';
+  box.innerHTML = h;
+}
+
 /* ---------- 好球集 ---------- */
 let exporting = false;
 function highlightClips(rows){
@@ -1826,19 +1996,74 @@ $('btnNew').addEventListener('click', () => {
 
 /* ---------- import / export ---------- */
 function exportObj(){ return {...match, video:videoName || undefined, exported_at:new Date().toISOString()}; }
-function fileStem(){ return ((match.meta.date||'match') + '-' + (match.meta.title||'tt').replace(/[\s　／/\\:*?"<>|]+/g,'-')).replace(/-+$/,''); }
-async function offerDownload(name, data){
-  if (downloadsNS){ try { await downloadsNS.save({filename:name, data}); toast('已儲存 ' + name); return; } catch(e){ if (e && e.code === 'declined') return; } }
+/* 匯出備份狀態：記住上次匯出時的比賽 id 與分數，提醒還有幾分沒備份 */
+let exportMark = null;
+try { exportMark = JSON.parse(localStorage.getItem(LS_KEY+':exported') || 'null'); } catch(e){}
+function markExported(){ exportMark = {id: match.id, n: match.points.length}; try { localStorage.setItem(LS_KEY+':exported', JSON.stringify(exportMark)); } catch(e){} renderExportState(); }
+function unsavedCount(){
+  if (isSample || !match.points.length) return 0;
+  if (!exportMark || exportMark.id !== match.id) return match.points.length;
+  return Math.max(0, match.points.length - exportMark.n);
+}
+function renderExportState(){
+  const el = $('exportState'); if (!el) return;
+  const n = unsavedCount();
+  el.className = 'cap' + (n ? ' warn' : '');
+  el.textContent = !match.points.length || isSample ? '' : (n ? `有 ${n} 分尚未匯出備份` : '這場已匯出備份');
+}
+/* 檔名：YYYY-MM-DD-<對手代號>，半形連字號分隔、無空白與全形符號 */
+function slugify(t){ return String(t||'').trim().replace(/[\s　]+/g,'-').replace(/[／/\\:*?"'<>|。，、；：！？（）()\[\]{}【】「」]+/g,'-').replace(/-{2,}/g,'-').replace(/^-|-$/g,''); }
+function fileStem(){
+  const who = slugify(match.meta.opponent) || slugify(match.meta.title) || 'match';
+  return (match.meta.date || 'undated') + '-' + who;
+}
+function saveBlob(name, data, mime){
+  try {
+    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([data], {type:(mime||'text/plain')+';charset=utf-8'}));
+    a.download = name; document.body.append(a); a.click();
+    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 4000);
+    return true;
+  } catch(e){ return false; }
+}
+async function offerDownload(name, data, mime){
+  if (downloadsNS){ try { await downloadsNS.save({filename:name, data}); toast('已儲存 ' + name); return true; } catch(e){ if (e && e.code === 'declined') return false; } }
+  if (saveBlob(name, data, mime)){ toast('已下載 ' + name); return true; }
   $('ioText').value = data; $('ioText').closest('details').open = true; $('ioText').focus(); $('ioText').select();
   toast('這裡無法直接下載，已把內容放到下方文字框，請複製。');
+  return false;
 }
-$('btnExport').addEventListener('click', () => offerDownload(fileStem() + '.json', JSON.stringify(exportObj(), null, 2)));
+$('btnExport').addEventListener('click', async () => { if (await offerDownload(fileStem() + '.json', JSON.stringify(exportObj(), null, 2), 'application/json')) markExported(); });
 $('btnExportCsv').addEventListener('click', () => {
   const d = derive();
   const head = ['idx','game','score_me','score_op','server','winner','rally','end_type','end_label','reason','note','critical','star','t_end'];
   const lines = [head.join(',')].concat(d.rows.map((r,i) => [i+1,r.game,r.score_me,r.score_op,r.server,r.winner,r.rally??'',r.end_type,endLabel(r.end_type,r.winner,r.server),r.reason??'',r.note??'',r.critical?1:0,r.star?1:0,r.t_end??''].map(v => /[",\n]/.test(String(v)) ? `"${String(v).replace(/"/g,'""')}"` : v).join(',')));
-  offerDownload(fileStem() + '-points.csv', '﻿' + lines.join('\n'));
+  offerDownload(fileStem() + '-points.csv', '﻿' + lines.join('\n'), 'text/csv');
 });
+const AI_PROMPT = `以下是一場桌球比賽的逐分紀錄，由「再來一顆｜桌球逐分復盤」匯出。
+
+欄位說明：
+- points 是逐分序列，依時間排序，是唯一正本。局數、比分、發球方都由它推導，不另外儲存。
+- winner：me＝我、op＝對手。
+- end_type：winner＝主動得分、forced_err＝受迫失誤、unforced_err＝非受迫失誤、serve_win＝發球方直接得分（對手吃發球）、serve_fault＝發球失誤。
+- reason：只有我方失誤才有，四個固定值（步法沒到／旋轉判斷錯／選擇太冒進／純執行失誤）或我手寫的文字。
+- note：我當下記的策略備註。rally：拍數，由擊球聲自動偵測，是參考值不是精確值。
+- t_end：影片秒數。star：我標記的好球。ann：我標這一分花的動作數與秒數。
+- meta.best_of 局制、meta.game_to 每局分數、meta.first_server 第一局首發球方；每局首發輪替，每 2 分換發，雙方皆達 game_to−1 之後改為每分換發。
+- meta.start_games_me／start_games_op：影片開始前已打完的局數。
+
+請根據這些資料幫我：
+1. 指出這場最該改進的兩件事，每一件都附上具體數字。
+2. 說出一個我自己可能沒注意、但資料顯示出來的模式。
+3. 給一個下次練習可以直接執行的重點。
+
+資料量少的時候請說樣本不足，不要硬下結論；不確定的地方直接說不確定。`;
+async function copyForAI(){
+  if (!match.points.length){ toast('還沒有資料可以複製'); return; }
+  const payload = AI_PROMPT + '\n\n```json\n' + JSON.stringify(exportObj(), null, 1) + '\n```\n';
+  try { await navigator.clipboard.writeText(payload); toast(`已複製 ${match.points.length} 分的資料，貼到 Claude 或 ChatGPT 即可`); }
+  catch(e){ $('ioText').value = payload; $('ioText').closest('details').open = true; $('ioText').focus(); $('ioText').select(); toast('瀏覽器不允許直接複製，已放到下方文字框'); }
+}
+$('btnCopyAI').addEventListener('click', copyForAI);
 $('btnImport').addEventListener('click', () => $('importFile').click());
 $('importFile').addEventListener('change', e => { const f = e.target.files[0]; if (!f) return; f.text().then(t => loadMatchJSON(t)).catch(() => toast('讀取失敗')); e.target.value=''; });
 function loadMatchJSON(text){
