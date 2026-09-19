@@ -115,6 +115,20 @@ kbd{font-family:var(--pp-font-mono);font-size:12px;border:var(--bw) solid var(--
 .choice:hover{background:var(--pp-bg-card-sub)}
 .choice.sel{border-color:var(--pp-accent);background:var(--pp-accent-soft)}
 .choice.sug{border-color:var(--pp-line-strong)}
+/* 開始前確認卡 */
+.setup{background:var(--pp-bg-card-sub);border-radius:var(--r-ctl);padding:14px 16px;margin-bottom:16px;display:grid;gap:12px}
+.setup h3{margin:0}
+.setup .srow{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.setup .srow>span{font-size:14px}
+.seg{display:inline-flex;border:var(--bw) solid var(--pp-line-strong);border-radius:var(--r-ctl);overflow:hidden}
+.seg button{background:var(--pp-bg-card);border:0;padding:8px 18px;cursor:pointer;font-weight:500;min-width:72px}
+.seg button+button{border-left:var(--bw) solid var(--pp-line-strong)}
+.seg button[aria-pressed="true"]{background:var(--pp-accent);color:#fff}
+.stepper{display:inline-flex;align-items:center;gap:6px;font-size:14px}
+.stepper button{width:32px;height:32px;border:var(--bw) solid var(--pp-line-strong);border-radius:var(--r-ctl);background:var(--pp-bg-card);cursor:pointer;font-size:16px;line-height:1}
+.stepper button:disabled{color:var(--pp-ink-hint);cursor:default}
+.stepper .n{font-family:var(--pp-font-mono);min-width:1.4em;text-align:center;font-size:16px}
+@media(pointer:coarse){.stepper button{width:40px;height:40px}.seg button{min-height:44px}}
 .choice .sugtag{font-size:11px;color:var(--pp-accent-deep);margin-left:8px;white-space:nowrap}
 .vctl label.ck{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--pp-ink-sub);cursor:pointer}
 .vctl label.ck input{margin:0}
@@ -309,6 +323,19 @@ textarea.io{width:100%;min-height:160px;font-family:var(--pp-font-mono);font-siz
 <!-- ================= 標註 ================= -->
 <section id="pane-annot">
   <div class="card">
+    <div class="setup" id="setupCard" hidden>
+      <div class="row" style="justify-content:space-between;align-items:baseline"><h3>開始前確認</h3><span class="cap">記下第一分後這張卡會收起</span></div>
+      <div class="srow"><span>這一局誰先發球</span>
+        <div class="seg" id="segServer" role="group" aria-label="這一局首發球"><button type="button" data-v="me" aria-pressed="true">我</button><button type="button" data-v="op" aria-pressed="false">對手</button></div></div>
+      <div class="srow"><span>影片從<strong>第 <span class="mono" id="setupGameNo">1</span> 局</strong>開始</span>
+        <div class="stepper" aria-label="開始前的大局比分">
+          <span class="cap">開始前大局</span>
+          <span>我</span><button type="button" data-k="start_games_me" data-d="-1" aria-label="我方局數減一">−</button><span class="n" id="sgMe">0</span><button type="button" data-k="start_games_me" data-d="1" aria-label="我方局數加一">+</button>
+          <span class="cap">：</span>
+          <span>對手</span><button type="button" data-k="start_games_op" data-d="-1" aria-label="對手局數減一">−</button><span class="n" id="sgOp">0</span><button type="button" data-k="start_games_op" data-d="1" aria-label="對手局數加一">+</button>
+        </div></div>
+      <p class="cap" style="margin:0">影片從中途開始錄時，先把已經打完的局數填上，局數、發球輪替、大局分析才會對。局制與每局分數在〔比賽資料〕。</p>
+    </div>
     <div class="board">
       <div>
         <div class="name"><span class="srv" id="srvMe"></span><span id="nameMe">我</span></div>
@@ -454,6 +481,11 @@ textarea.io{width:100%;min-height:160px;font-family:var(--pp-font-mono);font-siz
         <label class="f" style="flex:1">每局分數<select id="mGameTo"><option value="11" selected>11 分</option><option value="21">21 分</option></select></label>
         <label class="f" style="flex:1">第一局首發球<select id="mFirstServer"><option value="me">我</option><option value="op">對手</option></select></label>
       </div>
+      <div class="row" style="align-items:stretch">
+        <label class="f" style="flex:1">開始前大局：我<input type="number" id="mStartMe" min="0" max="6" inputmode="numeric"></label>
+        <label class="f" style="flex:1">開始前大局：對手<input type="number" id="mStartOp" min="0" max="6" inputmode="numeric"></label>
+        <span class="cap" style="flex:2;align-self:end">影片從中途開始錄時填已打完的局數；〔標註〕的開始前確認卡也能改。</span>
+      </div>
       <label class="f">備註<input type="text" id="mNote" placeholder="場地、器材、狀態……"></label>
       <div class="row">
         <button class="btn accent" id="btnNew" type="button">開新比賽（清除目前紀錄）</button>
@@ -550,7 +582,7 @@ let isSample = false;
 function newMatch(){
   return {
     schema:'tt-match/1', id: 'm' + Date.now().toString(36),
-    meta:{title:'', date:new Date().toISOString().slice(0,10), opponent:'', best_of:5, game_to:11, first_server:'me', note:'', me:'我'},
+    meta:{title:'', date:new Date().toISOString().slice(0,10), opponent:'', best_of:5, game_to:11, first_server:'me', note:'', me:'我', start_games_me:0, start_games_op:0},
     reflections:{},
     game_first_server_override:{},   // {gameNo: 'me'|'op'}
     points:[]
@@ -577,8 +609,10 @@ function gameOver(a,b){ const T = gameTo(); return (a >= T || b >= T) && Math.ab
 function isCritical(a,b){ const T = gameTo(); return Math.max(a,b) >= T-1 || (a >= T-2 && b >= T-2); }
 
 /* derive the full sequence from points */
+function startGames(){ const m = match.meta; return [Math.max(0, +m.start_games_me || 0), Math.max(0, +m.start_games_op || 0)]; }
 function derive(){
-  let g = 1, a = 0, b = 0, gm = 0, go = 0;
+  const [sm, so] = startGames();
+  let g = sm + so + 1, a = 0, b = 0, gm = sm, go = so;   // 影片從中途開始：局數與大局從已打完的局數起算
   const out = [];
   const games = [];
   for (const p of match.points){
@@ -1143,6 +1177,7 @@ function renderBoard(){
   $('nameMe').textContent = match.meta.me || '我';
   $('nameOp').textContent = match.meta.opponent || '對手';
   const gh = $('gameHist'); gh.innerHTML = '';
+  { const [sm, so] = startGames(); if (sm + so){ const s = document.createElement('span'); s.textContent = `前 ${sm + so} 局未錄（${sm}–${so}）`; s.title = '影片開始前已打完的局數'; gh.append(s); } }
   d.games.forEach(g => { const s = document.createElement('span'); s.className='mono'; s.textContent = `${g.me}–${g.op}`; gh.append(s); });
   if (d.matchOver){ const s = document.createElement('span'); s.textContent = d.gm > d.go ? '勝' : '負'; gh.append(s); }
   $('nPts').textContent = match.points.length;
@@ -1172,7 +1207,7 @@ function renderAnnStats(){
     kpi(span != null ? span.toFixed(1) + ' 分' : '—', '標註總時長', '第一分到最後一分'),
     kpi(span != null && vid ? (span / vid).toFixed(2) + '×' : '—', '總時長／影片長度', vid ? `影片 ${vid.toFixed(0)} 分` : '未載入影片'));
 }
-function renderAll(){ renderBoard(); renderStep(); drawTimeline(); renderAnnStats(); if (!$('pane-analysis').hidden) renderAnalysis(); }
+function renderAll(){ renderBoard(); renderSetup(); renderStep(); drawTimeline(); renderAnnStats(); if (!$('pane-analysis').hidden) renderAnalysis(); }
 
 /* ---------- analysis ---------- */
 const pct = (n, d) => d ? Math.round(100*n/d) + '%' : '—';
@@ -1204,7 +1239,7 @@ function renderAnalysis(){
   const byGame = {}; rows.forEach(r => (byGame[r.game] = byGame[r.game] || []).push(r));
   const gameNos = Object.keys(byGame).map(Number).sort((a,b)=>a-b);
   const finished = d.games; const need = match.meta.best_of ? Math.ceil(match.meta.best_of/2) : null;
-  let gm = 0, go = 0; const gInfo = [];
+  let [gm, go] = startGames(); const gInfo = [];
   for (const g of gameNos){
     const rs = byGame[g]; const fin = finished.find(G => G.game === g);
     const state = gm > go ? '領先' : gm < go ? '落後' : '平手';
@@ -1427,7 +1462,8 @@ function pointStart(rows, i){
 }
 
 /* ---------- meta form ---------- */
-const metaFields = {mTitle:'title', mDate:'date', mOpp:'opponent', mBestOf:'best_of', mGameTo:'game_to', mFirstServer:'first_server', mNote:'note'};
+const metaFields = {mTitle:'title', mDate:'date', mOpp:'opponent', mBestOf:'best_of', mGameTo:'game_to', mFirstServer:'first_server', mNote:'note', mStartMe:'start_games_me', mStartOp:'start_games_op'};
+const NUM_META = new Set(['best_of','game_to','start_games_me','start_games_op']);
 function fillMeta(){ for (const [id,k] of Object.entries(metaFields)) $(id).value = match.meta[k] ?? ''; }
 for (const [id,k] of Object.entries(metaFields)) $(id).addEventListener('input', e => {
   if (isSample){
@@ -1436,7 +1472,43 @@ for (const [id,k] of Object.entries(metaFields)) $(id).addEventListener('input',
     match.meta.title = ''; match.meta.opponent = ''; match.meta.note = ''; isSample = false; pending = null;
     toast('已清除範例資料，設定會套用到你的新比賽');
   }
-  match.meta[k] = (k==='best_of' || k==='game_to') ? +e.target.value : e.target.value; save(); fillMeta(); renderAll(); });
+  match.meta[k] = NUM_META.has(k) ? Math.max(0, +e.target.value || 0) : e.target.value; clampStartGames(); save(); fillMeta(); renderAll(); });
+/* 開始前大局不能已經分出勝負 */
+function clampStartGames(){
+  const need = match.meta.best_of ? Math.ceil(match.meta.best_of / 2) : Infinity;
+  const cap = need === Infinity ? 99 : need - 1;
+  match.meta.start_games_me = Math.min(cap, Math.max(0, +match.meta.start_games_me || 0));
+  match.meta.start_games_op = Math.min(cap, Math.max(0, +match.meta.start_games_op || 0));
+}
+/* 開始前確認卡 */
+function renderSetup(){
+  const card = $('setupCard');
+  card.hidden = isSample || match.points.length > 0;
+  if (card.hidden) return;
+  const d = derive(); const [sm, so] = startGames();
+  $('setupGameNo').textContent = d.game; $('sgMe').textContent = sm; $('sgOp').textContent = so;
+  const cur = firstServerOfGame(d.game);
+  card.querySelectorAll('#segServer button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === cur)));
+  const need = match.meta.best_of ? Math.ceil(match.meta.best_of / 2) : Infinity;
+  card.querySelectorAll('.stepper button').forEach(b => {
+    const v = +match.meta[b.dataset.k] || 0, dlt = +b.dataset.d;
+    b.disabled = dlt < 0 ? v <= 0 : v + 1 >= need;
+  });
+}
+$('segServer').addEventListener('click', e => {
+  const b = e.target.closest('button[data-v]'); if (!b) return;
+  const g = derive().game;   // 使用者選的是「這一局」；換算成第一局首發球，並清掉這局的手動覆寫
+  match.meta.first_server = ((g - 1) % 2 === 0) ? b.dataset.v : other(b.dataset.v);
+  delete match.game_first_server_override[g];
+  save(); fillMeta(); renderAll();
+});
+$('setupCard').addEventListener('click', e => {
+  const b = e.target.closest('.stepper button[data-k]'); if (!b || b.disabled) return;
+  const keepSrv = firstServerOfGame(derive().game);   // 使用者選的是「這一局」的首發；改局數後這一局的首發要維持不變
+  match.meta[b.dataset.k] = Math.max(0, (+match.meta[b.dataset.k] || 0) + +b.dataset.d); clampStartGames();
+  const g = derive().game; match.meta.first_server = ((g - 1) % 2 === 0) ? keepSrv : other(keepSrv); delete match.game_first_server_override[g];
+  save(); fillMeta(); renderAll();
+});
 $('btnNew').addEventListener('click', () => {
   if (match.points.length && !confirm('清除目前的逐分紀錄並開新比賽？（建議先匯出 JSON）')) return;
   const keep = {...match.meta, title:'', note:''}; match = newMatch(); match.meta = keep; isSample = false; pending = null; save(); fillMeta(); renderAll(); toast('已開新比賽');
@@ -1547,7 +1619,7 @@ async function listCloud(){
 }
 
 /* ---------- 測試用除錯鉤子（唯讀） ---------- */
-window.ttDebug = () => ({onsets, pending, match, isSample, autoPauseIdx, prevT, loaded: P.loaded, paused: P.paused, autoPause: $('autoPause').checked});
+window.ttDebug = () => ({onsets, pending, match, isSample, autoPauseIdx, prevT, loaded: P.loaded, paused: P.paused, autoPause: $('autoPause').checked, derived: derive()});
 
 /* ---------- boot ---------- */
 if (!restore()) loadSample();
