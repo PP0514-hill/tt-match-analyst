@@ -390,7 +390,9 @@ textarea.io{width:100%;min-height:160px;font-family:var(--pp-font-mono);font-siz
       <span><kbd>P</kbd></span><span>以 0.5 倍速重播這段回合，看完自動停</span>
       <span><kbd>,</kbd> <kbd>.</kbd></span><span>暫停時前後一格（約 1／30 秒）</span>
       <span><kbd>[</kbd> <kbd>]</kbd></span><span>上一段／下一段回合</span>
-      <span><kbd>S</kbd></span><span>切換本局首發球方（漏標修正）</span>
+      <span><kbd>S</kbd></span><span>切換本局首發球方（漏標修正）；雙打時在四位球員間循環，<kbd>Shift</kbd>+<kbd>S</kbd> 換首接球員</span>
+      <span><kbd>D</kbd></span><span>雙打：切換這一分我方最後一拍是我還是搭檔（預設依輪序與拍數推導）</span>
+      <span><kbd>F</kbd></span><span>雙打限定的失誤原因：輪序或走位</span>
       <span><kbd>Esc</kbd></span><span>取消目前這分的輸入</span>
     </div>
     </details>
@@ -411,8 +413,18 @@ textarea.io{width:100%;min-height:160px;font-family:var(--pp-font-mono);font-siz
   <div class="card">
     <div class="setup" id="setupCard" hidden>
       <div class="row" style="justify-content:space-between;align-items:baseline"><h3>開始前確認</h3><span class="cap">記下第一分後這張卡會收起</span></div>
+      <div class="srow"><span>單打或雙打</span>
+        <div class="seg" id="segMode" role="group" aria-label="單打或雙打"><button type="button" data-v="singles" aria-pressed="true">單打</button><button type="button" data-v="doubles" aria-pressed="false">雙打</button></div></div>
+      <div class="srow" id="dblNames" hidden><span>代號</span>
+        <div class="row" style="gap:6px;flex:1;justify-content:flex-end">
+          <input type="text" id="dPartner" placeholder="搭檔" style="width:88px" autocomplete="off">
+          <input type="text" id="dOpp1" placeholder="對手1" style="width:88px" autocomplete="off">
+          <input type="text" id="dOpp2" placeholder="對手2" style="width:88px" autocomplete="off">
+        </div></div>
       <div class="srow"><span>這一局誰先發球</span>
         <div class="seg" id="segServer" role="group" aria-label="這一局首發球"><button type="button" data-v="me" aria-pressed="true">我</button><button type="button" data-v="op" aria-pressed="false">對手</button></div></div>
+      <div class="srow" id="dblRecvRow" hidden><span>對面誰先接發球</span>
+        <div class="seg" id="segReceiver" role="group" aria-label="這一局首接球員"></div></div>
       <div class="srow"><span>影片從<strong>第 <span class="mono" id="setupGameNo">1</span> 局</strong>開始</span>
         <div class="stepper" aria-label="開始前的大局比分">
           <span class="cap">開始前大局</span>
@@ -428,7 +440,7 @@ textarea.io{width:100%;min-height:160px;font-family:var(--pp-font-mono);font-siz
         <div class="pts mono" id="ptsMe">0</div>
         <div class="games mono" id="gMe">局 0</div>
       </div>
-      <div class="vs">第 <span class="mono" id="gameNo">1</span> 局</div>
+      <div class="vs">第 <span class="mono" id="gameNo">1</span> 局<div class="cap" id="srvLine" hidden style="margin-top:4px;white-space:nowrap"></div></div>
       <div>
         <div class="name"><span id="nameOp">對手</span><span class="srv" id="srvOp"></span></div>
         <div class="pts mono" id="ptsOp">0</div>
@@ -609,6 +621,12 @@ textarea.io{width:100%;min-height:160px;font-family:var(--pp-font-mono);font-siz
         <label class="f" style="flex:1">對手代號<input type="text" id="mOpp" placeholder="例：右手橫板 B"></label>
       </div>
       <div class="row" style="align-items:stretch">
+        <label class="f" style="flex:1">單打或雙打<select id="mMode"><option value="singles">單打</option><option value="doubles">雙打</option></select></label>
+        <label class="f" style="flex:1">搭檔代號<input type="text" id="mPartner" placeholder="雙打用"></label>
+        <label class="f" style="flex:1">對手1<input type="text" id="mOpp1" placeholder="雙打用"></label>
+        <label class="f" style="flex:1">對手2<input type="text" id="mOpp2" placeholder="雙打用"></label>
+      </div>
+      <div class="row" style="align-items:stretch">
         <label class="f" style="flex:1">局制<select id="mBestOf"><option value="1">單局</option><option value="3">三戰兩勝</option><option value="5" selected>五戰三勝</option><option value="7">七戰四勝</option><option value="0">練習（不限局數）</option></select></label>
         <label class="f" style="flex:1">每局分數<select id="mGameTo"><option value="11" selected>11 分</option><option value="21">21 分</option></select></label>
         <label class="f" style="flex:1">第一局首發球<select id="mFirstServer"><option value="me">我</option><option value="op">對手</option></select></label>
@@ -696,6 +714,9 @@ textarea.io{width:100%;min-height:160px;font-family:var(--pp-font-mono);font-siz
 'use strict';
 const $ = id => document.getElementById(id);
 const REASONS = {Z:'步法沒到', X:'旋轉判斷錯', C:'選擇太冒進', V:'純執行失誤'};
+const REASONS_DOUBLES = {F:'輪序或走位'};   // 雙打才有：跟搭檔撞到、輪序亂了、球路擋到搭檔
+const reasonMap = () => (typeof isDoubles === 'function' && isDoubles()) ? {...REASONS, ...REASONS_DOUBLES} : REASONS;
+const fixedReasons = () => Object.values(reasonMap());
 const REASON_OTHER_KEY = 'B';
 const ENDS = {Q:'winner', W:'forced_err', E:'unforced_err', R:'serve_win', T:'serve_fault'};
 const END_ZH = {winner:'主動得分', forced_err:'受迫失誤', unforced_err:'非受迫失誤', serve_win:'發球得分／吃發球', serve_fault:'發球失誤'};
@@ -735,10 +756,12 @@ let isSample = false;
 
 function newMatch(){
   return {
-    schema:'tt-match/1', id: 'm' + Date.now().toString(36),
-    meta:{title:'', date:new Date().toISOString().slice(0,10), opponent:'', best_of:5, game_to:11, first_server:'me', note:'', me:'我', start_games_me:0, start_games_op:0},
+    schema:'tt-match/2', id: 'm' + Date.now().toString(36),
+    meta:{title:'', date:new Date().toISOString().slice(0,10), opponent:'', best_of:5, game_to:11, first_server:'me', note:'', me:'我', start_games_me:0, start_games_op:0,
+          mode:'singles', partner:'', opp1:'', opp2:'', d_first_server:'me', d_first_receiver:'o1'},   // v2：雙打欄位；d_first_* 是「第一個有紀錄的局」的首發與首接（球員代碼）
     reflections:{},
-    game_first_server_override:{},   // {gameNo: 'me'|'op'}
+    game_first_server_override:{},   // 單打：{gameNo: 'me'|'op'}
+    doubles_order_override:{},       // 雙打：{gameNo: {s:'pa', r:'o2'}}　s 首發球員、r 首接球員（可只給其一）
     points:[]
   };
 }
@@ -751,6 +774,37 @@ function firstServerOfGame(g){
   return ((g-1) % 2 === 0) ? base : other(base);
 }
 const other = s => s === 'me' ? 'op' : 'me';
+/* ---- 雙打：球員代碼 me／pa（搭檔）／o1／o2 ---- */
+const PLAYERS = ['me','pa','o1','o2'];
+const sideOf = p => (p === 'me' || p === 'pa') ? 'me' : 'op';
+const partnerOf = p => ({me:'pa', pa:'me', o1:'o2', o2:'o1'})[p];
+const isDoubles = () => match.meta.mode === 'doubles';
+function playerName(p){ const m = match.meta; return p === 'me' ? (m.me || '我') : p === 'pa' ? (m.partner || '搭檔') : p === 'o1' ? (m.opp1 || '對手1') : (m.opp2 || '對手2'); }
+const playerShort = p => ({me:'我', pa:'搭', o1:'對1', o2:'對2'})[p] || '—';
+const isDeciderGame = g => !!match.meta.best_of && g === +match.meta.best_of;
+/* 每分的發球輪次：每 2 分一輪，雙方皆達 T−1 後每分一輪（ITTF 2.13.3） */
+function turnIndex(a, b){ const D = gameTo() - 1; return (a >= D && b >= D) ? D + (a + b - 2*D) : Math.floor((a + b) / 2); }
+/* 這一局的首發球員與首接球員。prev＝上一局資料（首發球員、初始循環、各邊上次首發的人）；第一個有紀錄的局用 meta.d_first_*。
+   2.13.4：之後各局，先發那一對自選首發（預設輪替），首接者＝上一局發球給該首發者的人；2.13.6：上一局先發的一對這一局先接。 */
+function doublesOrderOfGame(g, prev){
+  const ov = (match.doubles_order_override || {})[g] || {};
+  let s, r;
+  if (!prev){
+    s = ov.s || match.meta.d_first_server || 'me';
+    r = ov.r || match.meta.d_first_receiver;
+  } else {
+    const side = other(sideOf(prev.s));
+    const last = prev.lastFirst[side];
+    s = ov.s || (last ? partnerOf(last) : (side === 'me' ? 'me' : 'o1'));
+    const i = prev.cycle.indexOf(s);
+    r = ov.r || (i >= 0 ? prev.cycle[(i + 3) % 4] : null);
+  }
+  if (!r || sideOf(r) === sideOf(s)) r = sideOf(s) === 'me' ? 'o1' : 'me';
+  return {s, r};
+}
+/* 2.13.5 的四人循環：[首發, 首接, 首發的搭檔, 首接的搭檔]；第 k 輪發球者 cycle[k%4]、接發者 cycle[(k+1)%4]；
+   2.8.2 擊球順序：第 N 拍由 cycle[(k+N−1)%4] 擊出。 */
+const cycleOf = (s, r) => [s, r, partnerOf(s), partnerOf(r)];
 function serverAt(g, a, b){
   const first = firstServerOfGame(g);
   const total = a + b;
@@ -769,21 +823,44 @@ function derive(){
   let g = sm + so + 1, a = 0, b = 0, gm = sm, go = so;   // 影片從中途開始：局數與大局從已打完的局數起算
   const out = [];
   const games = [];
+  const dbl = isDoubles();
+  // 雙打狀態：目前這局的循環（可能在決勝局 5 分處翻轉）、初始循環、上一局摘要、各邊上次首發的人
+  let cycle = null, cycle0 = null, order = null, swapped = false, prev = null; const lastFirst = {me:null, op:null};
+  const startGame = () => { order = doublesOrderOfGame(g, prev); cycle0 = cycleOf(order.s, order.r); cycle = cycle0.slice(); swapped = false; };
   for (const p of match.points){
-    const server = serverAt(g, a, b);
+    let server, serverP = null, receiverP = null, hitP = null;
+    if (dbl){
+      if (!cycle) startGame();
+      const k = turnIndex(a, b);
+      serverP = cycle[k % 4]; receiverP = cycle[(k + 1) % 4]; server = sideOf(serverP);
+      if (p.rally != null && p.rally > 0) hitP = cycle[(k + Math.min(p.rally, 40) - 1) % 4];
+    } else server = serverAt(g, a, b);
     const row = {...p, game:g, score_me:a, score_op:b, server, critical:isCritical(a,b)};
+    if (dbl){ row.serverP = serverP; row.receiverP = receiverP; row.hitP = hitP; row.by_auto = hitP && sideOf(hitP) === 'me' ? hitP : null; row.by = p.by || row.by_auto || null; }
     if (p.winner === 'me') a++; else b++;
     row.after_me = a; row.after_op = b;
     out.push(row);
     if (gameOver(a,b)){
       games.push({game:g, me:a, op:b, winner: a>b?'me':'op'});
       if (a>b) gm++; else go++;
+      if (dbl){ lastFirst[sideOf(order.s)] = order.s; prev = {s: order.s, cycle: cycle0, lastFirst: {...lastFirst}}; cycle = null; }
       g++; a = 0; b = 0;
+    } else if (dbl && !swapped && isDeciderGame(g) && (a === 5 || b === 5)){
+      // 2.13.6：決勝局任一對先得 5 分，接下來要接發的那一對交換接發順序（循環裡該對兩人互換）
+      const k2 = turnIndex(a, b); const recvSide = other(sideOf(cycle[k2 % 4]));
+      const i1 = cycle.findIndex(x => sideOf(x) === recvSide), i2 = i1 + 2;
+      [cycle[i1], cycle[i2]] = [cycle[i2], cycle[i1]]; swapped = true;
     }
   }
   const need = match.meta.best_of ? Math.ceil(match.meta.best_of / 2) : Infinity;
   const matchOver = gm >= need || go >= need;
-  return {rows:out, game:g, a, b, gm, go, games, matchOver, server: serverAt(g,a,b)};
+  const res = {rows:out, game:g, a, b, gm, go, games, matchOver, server: null, serverP: null, receiverP: null, order: null};
+  if (dbl){
+    if (!cycle) startGame();
+    const k = turnIndex(a, b);
+    res.serverP = cycle[k % 4]; res.receiverP = cycle[(k + 1) % 4]; res.server = sideOf(res.serverP); res.order = order;
+  } else res.server = serverAt(g, a, b);
+  return res;
 }
 
 /* ---------- player（本機檔案 或 YouTube）---------- */
@@ -881,7 +958,11 @@ function renderScoreBug(rows, idx){
     const r = rows[idx]; a = r.score_me; b = r.score_op; g = r.game; srv = r.server; review = true;
     let m = 0, o = 0; const [sm, so] = startGames(); m = sm; o = so; for (const G of d.games){ if (G.game < g){ if (G.winner === 'me') m++; else o++; } } gm = m; go = o;
   }
-  sb.innerHTML = `<span><span class="srv ${srv==='me'&&!d.matchOver?'on':''}"></span>${esc(match.meta.me||'我')}</span><span class="pts">${a}–${b}</span><span>${esc(match.meta.opponent||'對手')}<span class="srv ${srv==='op'&&!d.matchOver?'on':''}"></span></span><span class="g">第 ${g} 局 · 局 ${gm}–${go}${review?' · 回看':''}</span>`;
+  let sp = null, rp = null;
+  if (isDoubles()){ if (idx >= 0 && idx < rows.length){ sp = rows[idx].serverP; rp = rows[idx].receiverP; } else { sp = d.serverP; rp = d.receiverP; } }
+  const nameMe = isDoubles() ? `${esc(match.meta.me||'我')}／${esc(match.meta.partner||'搭檔')}` : esc(match.meta.me||'我');
+  const nameOp = isDoubles() ? `${esc(match.meta.opp1||'對手1')}／${esc(match.meta.opp2||'對手2')}` : esc(match.meta.opponent||'對手');
+  sb.innerHTML = `<span><span class="srv ${srv==='me'&&!d.matchOver?'on':''}"></span>${nameMe}</span><span class="pts">${a}–${b}</span><span>${nameOp}<span class="srv ${srv==='op'&&!d.matchOver?'on':''}"></span></span><span class="g">第 ${g} 局 · 局 ${gm}–${go}${sp && !d.matchOver ? ` · ${esc(playerName(sp))} 發 → ${esc(playerName(rp))}` : ''}${review?' · 回看':''}</span>`;
 }
 /* 回合結束自動暫停：播放頭越過某段回合 end＋0.8s 時暫停，只問誰得分。已記錄過的回合、目前正在輸入時不觸發。 */
 function checkAutoPause(t){
@@ -1209,14 +1290,31 @@ function startPoint(winner){
   if (isSample){ leaveSample(); toast('已清除範例資料，開始新比賽'); }
   const d = derive();
   if (d.matchOver){ toast('依局制比賽已結束。要繼續記錄請到〔比賽資料〕改局制（可選「練習（不限局數）」）。'); return; }
-  pending = {winner, server:d.server, end_type:null, reason:null, note:'', stage:'end', rally: rallyBuffer, t_end: P.loaded ? +P.time.toFixed(2) : null, t0: performance.now(), keys: 1};
+  pending = {winner, server:d.server, serverP:d.serverP, receiverP:d.receiverP, end_type:null, reason:null, note:'', stage:'end', rally: rallyBuffer, t_end: P.loaded ? +P.time.toFixed(2) : null, t0: performance.now(), keys: 1, by:null, by_auto:null};
   rallyBuffer = null;
   if (pending.rally == null && onsets && pending.t_end != null){
     const prev = match.points.length ? (match.points[match.points.length-1].t_end ?? 0) : 0;
     const n = onsets.hits.filter(t => t > prev + 0.3 && t <= pending.t_end + 0.2).length;
     if (n > 0) { pending.rally = Math.min(n, 30); pending.rally_auto = true; }
   }
+  updateByAuto();
   renderStep();
+}
+/* 雙打：依 2.8.2 從發球輪與拍數推「我方最後一拍是誰」；D 鍵切換 */
+function updateByAuto(){
+  if (!pending || !isDoubles() || !pending.serverP) return;
+  const base = [pending.serverP, pending.receiverP, partnerOf(pending.serverP), partnerOf(pending.receiverP)];
+  const hit = pending.rally ? base[(Math.min(pending.rally, 40) - 1) % 4] : null;
+  pending.by_auto = hit && sideOf(hit) === 'me' ? hit : null;
+  if (!pending.by_user) pending.by = pending.by_auto;
+}
+function toggleBy(){
+  if (!isDoubles()) return;
+  if (pending){ pending.by = pending.by === 'pa' ? 'me' : 'pa'; pending.by_user = true; bump(); renderStep(); return; }
+  if (!match.points.length) return;
+  const i = starTargetIdx(), p = match.points[i], row = derive().rows[i];
+  const cur = p.by || row.by_auto || 'me'; p.by = cur === 'pa' ? 'me' : 'pa'; save(); renderAll();
+  toast(`第 ${i+1} 分最後一拍改為：${playerName(p.by)}`);
 }
 /* 依拍數建議結束方式：1 拍＝發球直接分勝負；2 拍且發球方贏＝接發失誤（吃發球）。其餘不猜。 */
 function suggestEnd(p){
@@ -1260,11 +1358,11 @@ function setEnd(code){
 function setReason(code){
   if (!pending || pending.stage !== 'reason') return; bump();
   if (code === REASON_OTHER_KEY){ pending.stage = 'reason_text'; renderStep(); return; }
-  pending.reason = REASONS[code];
+  pending.reason = reasonMap()[code];
   commit();
 }
 function setRally(n){
-  if (pending){ pending.rally = n; pending.rally_auto = false; bump(); renderStep(); }
+  if (pending){ pending.rally = n; pending.rally_auto = false; bump(); updateByAuto(); renderStep(); }
   else { rallyBuffer = n; renderStep(); }
 }
 /* 常用備註：跨場累計出現次數，存 localStorage；備註階段與編輯器列出最常用的幾句，一鍵帶入 */
@@ -1291,6 +1389,7 @@ function commit(){
   const wasOver = derive().matchOver;
   const p = {winner:pending.winner, end_type:pending.end_type, reason:pending.reason, note:pending.note || '', rally:pending.rally ?? null, t_end:pending.t_end};
   if (pending.star) p.star = true;
+  if (isDoubles() && pending.by && pending.by_user) p.by = pending.by;   // 只有使用者親自指定才存；推導值每次重算
   rememberNote(p.note);
   if (pending.t0){ p.ann = {keys: pending.keys || 1, sec: +((performance.now() - pending.t0) / 1000).toFixed(1)}; }
   match.ann = match.ann || {}; const now = Date.now(); if (!match.ann.first) match.ann.first = now; match.ann.last = now;
@@ -1311,9 +1410,27 @@ function undo(){
 }
 function toggleServer(){
   const d = derive();
+  if (isDoubles()){
+    // 在四位球員間循環這一局的首發球員；首接者依規則重算（除非另有覆寫）
+    const g = d.game, cur = d.order ? d.order.s : 'me';
+    const nxt = PLAYERS[(PLAYERS.indexOf(cur) + 1) % 4];
+    match.doubles_order_override = match.doubles_order_override || {};
+    match.doubles_order_override[g] = {s: nxt};
+    if (!prevGameExists(g)) match.meta.d_first_server = nxt;
+    save(); renderAll(); toast(`第 ${g} 局首發球改為：${playerName(nxt)}（Shift+S 換接發者）`); return;
+  }
   const cur = firstServerOfGame(d.game);
   match.game_first_server_override[d.game] = other(cur);
   save(); renderAll(); toast(`第 ${d.game} 局首發球改為：${other(cur) === 'me' ? '我' : '對手'}`);
+}
+function prevGameExists(g){ const [sm, so] = startGames(); return g > sm + so + 1; }
+function toggleReceiver(){
+  const d = derive(); if (!isDoubles() || !d.order) return;
+  const g = d.game, nxt = partnerOf(d.order.r);
+  match.doubles_order_override = match.doubles_order_override || {};
+  match.doubles_order_override[g] = {...(match.doubles_order_override[g] || {}), r: nxt};
+  if (!prevGameExists(g)) match.meta.d_first_receiver = nxt;
+  save(); renderAll(); toast(`第 ${g} 局首接球員改為：${playerName(nxt)}`);
 }
 // N：替上一分補備註
 let noteTarget = null; // index into match.points（編輯中的那一分）
@@ -1323,7 +1440,7 @@ function saveEdit(){
   const i = noteTarget; if (i == null) return;
   const p = match.points[i], row = derive().rows[i];
   const rIn = $('stepReason'), nIn = $('stepText');
-  if (rIn && isMyError(p, row.server)){ const v = rIn.value.trim(); if (v) p.reason = v; else if (!Object.values(REASONS).includes(p.reason)) p.reason = null; }
+  if (rIn && isMyError(p, row.server)){ const v = rIn.value.trim(); if (v) p.reason = v; else if (!fixedReasons().includes(p.reason)) p.reason = null; }
   if (nIn) p.note = nIn.value.trim();
   rememberNote(p.note);
   noteTarget = null; save(); renderAll(); toast(`第 ${i+1} 分已更新`);
@@ -1383,11 +1500,12 @@ function handleKey(e){
   if (K === 'A'){ if (!pending) startPoint('me'); return; }
   if (K === 'L'){ if (!pending) startPoint('op'); return; }
   if (K in ENDS){ setEnd(K); return; }
-  if (K in REASONS || K === REASON_OTHER_KEY){ setReason(K); return; }
+  if (K in reasonMap() || K === REASON_OTHER_KEY){ setReason(K); return; }
   if (K === 'N'){ editLastNote(); return; }
   if (K === 'H'){ toggleStar(); return; }
   if (/^[0-9]$/.test(K)){ setRally(K === '0' ? 10 : +K); return; }
-  if (K === 'S'){ toggleServer(); return; }
+  if (K === 'S'){ if (isDoubles() && e.shiftKey) toggleReceiver(); else toggleServer(); return; }
+  if (K === 'D'){ toggleBy(); return; }
 }
 
 /* ---------- render ---------- */
@@ -1422,8 +1540,8 @@ function renderStep(){
     const box = document.createElement('div'); box.className = 'editbox';
     if (isMyError(p, row.server)){
       const rc = document.createElement('div'); rc.className = 'choices';
-      for (const [k,v] of Object.entries(REASONS)){ const b = choiceBtn(k, v, () => { p.reason = v; save(); renderAll(); renderStep(); }); if (p.reason === v) b.classList.add('sel'); rc.append(b); }
-      box.append(rc, editBox('stepReason', '其他原因（手寫，留空則沿用上面選的）', Object.values(REASONS).includes(p.reason) ? '' : (p.reason || ''), '例：對手側旋發球，回球出界'));
+      for (const [k,v] of Object.entries(reasonMap())){ const b = choiceBtn(k, v, () => { p.reason = v; save(); renderAll(); renderStep(); }); if (p.reason === v) b.classList.add('sel'); rc.append(b); }
+      box.append(rc, editBox('stepReason', '其他原因（手寫，留空則沿用上面選的）', fixedReasons().includes(p.reason) ? '' : (p.reason || ''), '例：對手側旋發球，回球出界'));
     }
     box.append(editBox('stepText', '備註', p.note, '例：反手位短下旋，等他擺短再搶攻'));
     const qb = quickNoteBar(t => { const inp = $('stepText'); if (inp){ inp.value = t; inp.focus(); } }); if (qb) box.append(qb);
@@ -1439,7 +1557,9 @@ function renderStep(){
       pend.append(chip(tp && tp.star ? `H 取消${who}好球` : `H ${who}標好球`, false, toggleStar)); }
   } else {
     chips.push(chip(pending.winner === 'me' ? '我得分' : '對手得分', true));
-    chips.push(chip((pending.server === 'me' ? '我' : '對手') + '發球', false));
+    if (isDoubles()) chips.push(chip(`${playerName(pending.serverP)} 發 → ${playerName(pending.receiverP)} 接`, false));
+    else chips.push(chip((pending.server === 'me' ? '我' : '對手') + '發球', false));
+    if (isDoubles() && pending.by) chips.push(chip(`最後一拍：${playerName(pending.by)}${pending.by_user ? '' : '（推）'}`, true));
     if (pending.rally != null) chips.push(chip(`拍數 ${pending.rally}${pending.rally>=10?'+':''}${pending.rally_auto?'（自動）':''}`, true));
     if (pending.star) chips.push(chip('★ 好球', true));
     if (pending.stage === 'end'){
@@ -1455,7 +1575,7 @@ function renderStep(){
       $('stepLabel').textContent = '我的失誤原因';
       chips.push(chip(endLabel(pending.end_type, pending.winner, pending.server), true));
       q.textContent = '為什麼失誤？';
-      for (const [k,v] of Object.entries(REASONS)) ch.append(choiceBtn(k, v, () => setReason(k)));
+      for (const [k,v] of Object.entries(reasonMap())) ch.append(choiceBtn(k, v, () => setReason(k)));
       ch.append(choiceBtn(REASON_OTHER_KEY, '其他（手寫）', () => setReason(REASON_OTHER_KEY)));
     } else if (pending.stage === 'reason_text'){
       $('stepLabel').textContent = '手寫失誤原因';
@@ -1470,6 +1590,7 @@ function renderStep(){
       const qb = quickNoteBar(t => { pending.note = t; bump(); commit(); }); if (qb) ch.append(qb);
     }
     pend.append(chip(pending.star ? 'H 取消好球' : 'H 好球', false, toggleStar));
+    if (isDoubles()) pend.append(chip(`D 最後一拍：${pending.by === 'pa' ? '改成我' : '改成搭檔'}`, false, toggleBy));
     pend.append(chip('Esc 取消', false, cancelPending));
   }
   chips.forEach(c => pend.prepend(c));
@@ -1501,8 +1622,9 @@ function renderBoard(){
   $('gameNo').textContent = d.game;
   $('srvMe').classList.toggle('on', d.server === 'me' && !d.matchOver);
   $('srvOp').classList.toggle('on', d.server === 'op' && !d.matchOver);
-  $('nameMe').textContent = match.meta.me || '我';
-  $('nameOp').textContent = match.meta.opponent || '對手';
+  $('nameMe').textContent = isDoubles() ? `${match.meta.me || '我'}／${match.meta.partner || '搭檔'}` : (match.meta.me || '我');
+  $('nameOp').textContent = isDoubles() ? `${match.meta.opp1 || '對手1'}／${match.meta.opp2 || '對手2'}` : (match.meta.opponent || '對手');
+  { const el = $('srvLine'); if (isDoubles() && d.serverP && !d.matchOver){ el.hidden = false; el.textContent = `發球 ${playerName(d.serverP)}　接發 ${playerName(d.receiverP)}`; } else el.hidden = true; }
   curIdx = P.loaded ? pointIndexAt(d.rows, P.time) : -1;
   renderScoreBug(d.rows, curIdx);
   const gh = $('gameHist'); gh.innerHTML = '';
@@ -1517,7 +1639,7 @@ function renderBoard(){
     const idx = d.rows.length - i;
     tr.dataset.idx = idx - 1; if (idx - 1 === curIdx) tr.classList.add('cur');
     tr.innerHTML = `<td><button type="button" class="starbtn${r.star?' on':''}" data-star="${idx-1}" title="${r.star?'取消好球':'標為好球'}" aria-pressed="${!!r.star}">★</button></td><td class="mono">${idx}</td><td class="mono">${r.game}</td><td class="mono">${r.score_me}–${r.score_op}${r.critical?' ·':''}</td>
-      <td>${r.server==='me'?'我':'對'}</td><td class="${r.winner==='me'?'me':''}">${r.winner==='me'?'我':'對手'}</td>
+      <td>${r.serverP ? playerShort(r.serverP) : (r.server==='me'?'我':'對')}</td><td class="${r.winner==='me'?'me':''}">${r.winner==='me'?'我':'對手'}${r.by && (r.winner==='me' || isMyError(r, r.server)) ? `<span class="nt" style="margin-left:4px">${playerShort(r.by)}</span>` : ''}</td>
       <td class="mono">${r.rally==null?'—':(r.rally>=10?'10+':r.rally)}</td><td>${endLabel(r.end_type, r.winner, r.server)}</td><td class="notecell${(r.reason||r.note)?'':' blank'}" data-edit="${idx-1}" title="${esc(r.note||'')}${r.note?'　':''}點擊編輯原因／備註">${esc(r.reason||'')}${r.note?`<span class="nt">${esc(r.note)}</span>`:''}</td>
       <td class="mono">${r.t_end==null?'—':fmtT(r.t_end)}</td>`;
     if (r.t_end != null){ tr.dataset.seek = pointStart(d.rows, idx-1); tr.title='跳到這一分'; }
@@ -1557,7 +1679,7 @@ function renderAnalysis(){
   const rl = rows.filter(r => r.rally != null);
   const rate = rs => rs.length ? rs.filter(r=>r.winner==='me').length / rs.length : null;
   const myErrOf = rs => rs.filter(r => r.winner==='op' && r.end_type!=='winner');
-  const fixed = Object.values(REASONS);
+  const fixed = fixedReasons();
   kp.append(
     kpi(pct(won.length, rows.length), '總得分率', `${won.length}／${rows.length} 分`),
     kpi(`${pct(srv.filter(r=>r.winner==='me').length, srv.length)}／${pct(rcv.filter(r=>r.winner==='me').length, rcv.length)}`, '發球輪／接發輪得分率', `${srv.length} 分／${rcv.length} 分`),
@@ -1726,7 +1848,7 @@ function exportMarkdown(){
   const d = derive(), rows = d.rows;
   if (!rows.length){ toast('還沒有資料'); return; }
   renderAnalysis();   // 讓 lastInsights 是最新的
-  const m = match.meta, fixed = Object.values(REASONS);
+  const m = match.meta, fixed = fixedReasons();
   const won = rows.filter(r=>r.winner==='me'), lost = rows.filter(r=>r.winner==='op');
   const srv = rows.filter(r=>r.server==='me'), rcv = rows.filter(r=>r.server==='op');
   const crit = rows.filter(r=>r.critical), myErr = lost.filter(r=>r.end_type!=='winner');
@@ -1807,7 +1929,7 @@ $('multiFile').addEventListener('change', async e => {
     try {
       const o = JSON.parse(await f.text());
       if (!o || !Array.isArray(o.points) || !o.points.length) throw new Error('沒有逐分資料');
-      ok.push({...newMatch(), ...o, meta:{...newMatch().meta, ...(o.meta||{})}, game_first_server_override:o.game_first_server_override||{}, _file:f.name});
+      ok.push({...migrateMatch(o), _file:f.name});
     } catch(err){ bad.push(f.name); }
   }
   multiMatches = ok.sort((a,b) => String(a.meta.date||'').localeCompare(String(b.meta.date||'')));
@@ -1818,7 +1940,7 @@ $('multiFile').addEventListener('change', async e => {
 function renderMulti(){
   const box = $('multiOut'); box.innerHTML = '';
   if (!multiMatches.length) return;
-  const all = multiMatches.map(statsOf), fixed = Object.values(REASONS);
+  const all = multiMatches.map(statsOf), fixed = [...new Set([...Object.values(REASONS), ...(multiMatches.some(m => m.meta.mode === 'doubles') ? Object.values(REASONS_DOUBLES) : [])])];
   const avgR = st => st.rl.length ? (st.rl.reduce((s,r)=>s+r.rally,0)/st.rl.length).toFixed(1) : '—';
   const S = k => all.reduce((s, st) => s + st[k].length, 0);
   const SW = k => all.reduce((s, st) => s + st[k].filter(r=>r.winner==='me').length, 0);
@@ -2037,7 +2159,7 @@ function pointStart(rows, i){
 }
 
 /* ---------- meta form ---------- */
-const metaFields = {mTitle:'title', mDate:'date', mOpp:'opponent', mBestOf:'best_of', mGameTo:'game_to', mFirstServer:'first_server', mNote:'note', mStartMe:'start_games_me', mStartOp:'start_games_op'};
+const metaFields = {mTitle:'title', mDate:'date', mOpp:'opponent', mBestOf:'best_of', mGameTo:'game_to', mFirstServer:'first_server', mNote:'note', mStartMe:'start_games_me', mStartOp:'start_games_op', mMode:'mode', mPartner:'partner', mOpp1:'opp1', mOpp2:'opp2', dPartner:'partner', dOpp1:'opp1', dOpp2:'opp2'};
 const NUM_META = new Set(['best_of','game_to','start_games_me','start_games_op']);
 function fillMeta(){ for (const [id,k] of Object.entries(metaFields)) $(id).value = match.meta[k] ?? ''; }
 for (const [id,k] of Object.entries(metaFields)) $(id).addEventListener('input', e => {
@@ -2047,6 +2169,7 @@ for (const [id,k] of Object.entries(metaFields)) $(id).addEventListener('input',
     match.meta.title = ''; match.meta.opponent = ''; match.meta.note = ''; isSample = false; pending = null;
     toast('已清除範例資料，設定會套用到你的新比賽');
   }
+  if (k === 'mode'){ setMode(e.target.value); return; }
   match.meta[k] = NUM_META.has(k) ? Math.max(0, +e.target.value || 0) : e.target.value; clampStartGames(); save(); fillMeta(); renderAll(); });
 /* 開始前大局不能已經分出勝負 */
 function clampStartGames(){
@@ -2062,8 +2185,20 @@ function renderSetup(){
   if (card.hidden) return;
   const d = derive(); const [sm, so] = startGames();
   $('setupGameNo').textContent = d.game; $('sgMe').textContent = sm; $('sgOp').textContent = so;
-  const cur = firstServerOfGame(d.game);
-  card.querySelectorAll('#segServer button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === cur)));
+  const dbl = isDoubles();
+  card.querySelectorAll('#segMode button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === (dbl ? 'doubles' : 'singles'))));
+  $('dblNames').hidden = !dbl; $('dblRecvRow').hidden = !dbl;
+  const seg = $('segServer');
+  if (dbl){
+    const cur = d.order ? d.order.s : 'me';
+    seg.innerHTML = PLAYERS.map(pl => `<button type="button" data-v="${pl}" aria-pressed="${pl === cur}">${esc(playerName(pl))}</button>`).join('');
+    const rcv = $('segReceiver'); const curR = d.order ? d.order.r : 'o1';
+    rcv.innerHTML = PLAYERS.filter(pl => sideOf(pl) !== sideOf(cur)).map(pl => `<button type="button" data-v="${pl}" aria-pressed="${pl === curR}">${esc(playerName(pl))}</button>`).join('');
+  } else {
+    const cur = firstServerOfGame(d.game);
+    if (seg.querySelectorAll('button').length !== 2) seg.innerHTML = '<button type="button" data-v="me">我</button><button type="button" data-v="op">對手</button>';
+    seg.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === cur)));
+  }
   const need = match.meta.best_of ? Math.ceil(match.meta.best_of / 2) : Infinity;
   card.querySelectorAll('.stepper button').forEach(b => {
     const v = +match.meta[b.dataset.k] || 0, dlt = +b.dataset.d;
@@ -2072,11 +2207,38 @@ function renderSetup(){
 }
 $('segServer').addEventListener('click', e => {
   const b = e.target.closest('button[data-v]'); if (!b) return;
-  const g = derive().game;   // 使用者選的是「這一局」；換算成第一局首發球，並清掉這局的手動覆寫
-  match.meta.first_server = ((g - 1) % 2 === 0) ? b.dataset.v : other(b.dataset.v);
-  delete match.game_first_server_override[g];
+  const g = derive().game;
+  if (isDoubles()){
+    match.meta.d_first_server = b.dataset.v;
+    if (sideOf(match.meta.d_first_receiver || 'o1') === sideOf(b.dataset.v)) match.meta.d_first_receiver = sideOf(b.dataset.v) === 'me' ? 'o1' : 'me';
+    match.meta.first_server = ((g - 1) % 2 === 0) ? sideOf(b.dataset.v) : other(sideOf(b.dataset.v));   // 對的層級同步，供單雙切換時保留
+    if (match.doubles_order_override) delete match.doubles_order_override[g];
+  } else {
+    match.meta.first_server = ((g - 1) % 2 === 0) ? b.dataset.v : other(b.dataset.v);   // 使用者選的是「這一局」；換算成第一局首發球，並清掉這局的手動覆寫
+    delete match.game_first_server_override[g];
+  }
   save(); fillMeta(); renderAll();
 });
+$('segReceiver').addEventListener('click', e => {
+  const b = e.target.closest('button[data-v]'); if (!b) return;
+  match.meta.d_first_receiver = b.dataset.v; if (match.doubles_order_override) delete match.doubles_order_override[derive().game];
+  save(); fillMeta(); renderAll();
+});
+$('segMode').addEventListener('click', e => {
+  const b = e.target.closest('button[data-v]'); if (!b) return;
+  setMode(b.dataset.v);
+});
+function setMode(mode){
+  if (isSample) leaveSample();
+  match.meta.mode = mode;
+  if (mode === 'doubles'){
+    // 由對的層級帶入預設：這一局哪一對先發 → 該對的第一位
+    const g = derive().game; const side = firstServerOfGame(g);
+    if (!match.meta.d_first_server || sideOf(match.meta.d_first_server) !== side) match.meta.d_first_server = side === 'me' ? 'me' : 'o1';
+    if (!match.meta.d_first_receiver || sideOf(match.meta.d_first_receiver) === side) match.meta.d_first_receiver = side === 'me' ? 'o1' : 'me';
+  }
+  save(); fillMeta(); renderAll(); toast(mode === 'doubles' ? '雙打模式：發球輪替依四人循環推導，D 鍵切換最後一拍是誰' : '單打模式');
+}
 $('setupCard').addEventListener('click', e => {
   const b = e.target.closest('.stepper button[data-k]'); if (!b || b.disabled) return;
   const keepSrv = firstServerOfGame(derive().game);   // 使用者選的是「這一局」的首發；改局數後這一局的首發要維持不變
@@ -2130,8 +2292,8 @@ async function offerDownload(name, data, mime){
 $('btnExport').addEventListener('click', async () => { if (await offerDownload(fileStem() + '.json', JSON.stringify(exportObj(), null, 2), 'application/json')) markExported(); });
 $('btnExportCsv').addEventListener('click', () => {
   const d = derive();
-  const head = ['idx','game','score_me','score_op','server','winner','rally','end_type','end_label','reason','note','critical','star','t_end'];
-  const lines = [head.join(',')].concat(d.rows.map((r,i) => [i+1,r.game,r.score_me,r.score_op,r.server,r.winner,r.rally??'',r.end_type,endLabel(r.end_type,r.winner,r.server),r.reason??'',r.note??'',r.critical?1:0,r.star?1:0,r.t_end??''].map(v => /[",\n]/.test(String(v)) ? `"${String(v).replace(/"/g,'""')}"` : v).join(',')));
+  const head = ['idx','game','score_me','score_op','server','winner','rally','end_type','end_label','reason','note','critical','star','t_end','server_p','receiver_p','by'];
+  const lines = [head.join(',')].concat(d.rows.map((r,i) => [i+1,r.game,r.score_me,r.score_op,r.server,r.winner,r.rally??'',r.end_type,endLabel(r.end_type,r.winner,r.server),r.reason??'',r.note??'',r.critical?1:0,r.star?1:0,r.t_end??'',r.serverP??'',r.receiverP??'',r.by??''].map(v => /[",\n]/.test(String(v)) ? `"${String(v).replace(/"/g,'""')}"` : v).join(',')));
   offerDownload(fileStem() + '-points.csv', '﻿' + lines.join('\n'), 'text/csv');
 });
 const AI_PROMPT = `以下是一場桌球比賽的逐分紀錄，由「再來一顆｜桌球逐分復盤」匯出。
@@ -2145,6 +2307,7 @@ const AI_PROMPT = `以下是一場桌球比賽的逐分紀錄，由「再來一�
 - t_end：影片秒數。star：我標記的好球。ann：我標這一分花的動作數與秒數。
 - meta.best_of 局制、meta.game_to 每局分數、meta.first_server 第一局首發球方；每局首發輪替，每 2 分換發，雙方皆達 game_to−1 之後改為每分換發。
 - meta.start_games_me／start_games_op：影片開始前已打完的局數。
+- meta.mode：singles 單打／doubles 雙打。雙打時 meta.partner、opp1、opp2 是搭檔與兩位對手的代號；每分的 by（me＝我、pa＝搭檔）是我方最後一拍是誰打的，沒有 by 的分請依 ITTF 2.8.2 擊球順序由發球輪與拍數推估；失誤原因多一個「輪序或走位」。
 
 請根據這些資料幫我：
 1. 指出這場最該改進的兩件事，每一件都附上具體數字。
@@ -2161,12 +2324,20 @@ async function copyForAI(){
 $('btnCopyAI').addEventListener('click', copyForAI);
 $('btnImport').addEventListener('click', () => $('importFile').click());
 $('importFile').addEventListener('change', e => { const f = e.target.files[0]; if (!f) return; f.text().then(t => loadMatchJSON(t)).catch(() => toast('讀取失敗')); e.target.value=''; });
+/* schema 遷移：v1（無 mode）→ v2 視為單打；缺的欄位補預設 */
+function migrateMatch(o){
+  const base = newMatch();
+  const m = {...base, ...o, meta:{...base.meta, ...(o.meta||{})}, game_first_server_override:o.game_first_server_override||{}, doubles_order_override:o.doubles_order_override||{}, reflections:o.reflections||{}};
+  if (!m.meta.mode) m.meta.mode = 'singles';
+  m.schema = 'tt-match/2';
+  return m;
+}
 function loadMatchJSON(text){
   try {
     const o = JSON.parse(text);
     if (!o || !Array.isArray(o.points)) throw new Error('格式不符');
-    match = {...newMatch(), ...o, meta:{...newMatch().meta, ...(o.meta||{})}, game_first_server_override:o.game_first_server_override||{}, reflections:o.reflections||{}};
-    isSample = false; pending = null; save(); fillMeta(); renderAll(); toast(`已載入 ${match.points.length} 分`);
+    match = migrateMatch(o);
+    isSample = false; pending = null; save(); fillMeta(); renderAll(); toast(`已載入 ${match.points.length} 分${match.meta.mode === 'doubles' ? '（雙打）' : ''}`);
   } catch(err){ toast('無法解析 JSON：' + err.message); }
 }
 $('btnIoLoad').addEventListener('click', () => loadMatchJSON($('ioText').value));
@@ -2183,7 +2354,7 @@ $('onsetFile').addEventListener('change', e => { const f = e.target.files[0]; if
 /* ---------- persistence ---------- */
 function save(){ try { localStorage.setItem(LS_KEY, JSON.stringify({match, isSample})); } catch(e){} }
 function restore(){
-  try { const raw = localStorage.getItem(LS_KEY); if (raw){ const o = JSON.parse(raw); if (o && o.match && Array.isArray(o.match.points)){ match = {...newMatch(), ...o.match}; match.reflections = match.reflections || {}; isSample = !!o.isSample; return true; } } } catch(e){}
+  try { const raw = localStorage.getItem(LS_KEY); if (raw){ const o = JSON.parse(raw); if (o && o.match && Array.isArray(o.match.points)){ match = migrateMatch(o.match); isSample = !!o.isSample; return true; } } } catch(e){}
   return false;
 }
 function toast(msg){ const t = $('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toast._h); toast._h = setTimeout(() => t.classList.remove('show'), 2200); }
@@ -2250,6 +2421,7 @@ async function listCloud(){
 
 /* ---------- 測試用除錯鉤子（唯讀） ---------- */
 window.ttDebug = () => ({onsets, pending, match, isSample, autoPauseIdx, prevT, loaded: P.loaded, paused: P.paused, autoPause: $('autoPause').checked, derived: derive(), replay, skipGaps: $('skipGaps').checked, askNote: $('askNote').checked});
+window.ttSetMode = setMode;
 
 /* ---------- boot ---------- */
 if (!restore()) loadSample();
