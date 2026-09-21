@@ -508,6 +508,22 @@ textarea.io{width:100%;min-height:160px;font-family:var(--pp-font-mono);font-siz
       <div id="trajWrap" style="margin-top:12px"></div>
     </div>
 
+    <div class="card" id="dblCard" hidden>
+      <div class="row" style="justify-content:space-between">
+        <h3>雙打：我與搭檔</h3>
+        <span class="cap">「最後一拍在我方」的分才算到個人；沒按 D 改過的分用輪序與拍數推導，是估計值</span>
+      </div>
+      <div class="mt-wrap"><table class="mtable" id="dblPlayers"></table></div>
+      <div class="two" style="margin-top:16px">
+        <div><h3>各自的失誤原因</h3><div class="bars" id="dblReasonBars" style="margin-top:12px"></div></div>
+        <div><h3>四種發球輪的我方得分率</h3><div class="bars" id="dblServeBars" style="margin-top:12px"></div>
+          <p class="cap" style="margin:10px 0 0">誰發球時我們拿分最少，就是最該練的輪。</p></div>
+      </div>
+      <div style="margin-top:16px"><h3>接發配對</h3>
+        <div class="mt-wrap"><table class="mtable" id="dblPairs"></table></div>
+        <p class="cap" style="margin:10px 0 0">同一組「誰發、誰接」在一局裡固定出現；哪一組我方得分率最低，通常就是對手的戰術重點。</p></div>
+    </div>
+
     <div class="card" id="hlCard">
       <div class="row" style="justify-content:space-between">
         <h3>好球集 <span class="mono cap" id="hlCount">0</span></h3>
@@ -808,6 +824,20 @@ function doublesOrderOfGame(g, prev){
 /* 2.13.5 的四人循環：[首發, 首接, 首發的搭檔, 首接的搭檔]；第 k 輪發球者 cycle[k%4]、接發者 cycle[(k+1)%4]；
    2.8.2 擊球順序：第 N 拍由 cycle[(k+N−1)%4] 擊出。 */
 const cycleOf = (s, r) => [s, r, partnerOf(s), partnerOf(r)];
+/* 我方最後一拍是誰（雙打）。只有「我方靠自己得分」或「我方失誤」的分才歸到人；擊球順序（2.8.2）第 N 拍＝base[(N−1)%4]。
+   拍數奇偶與歸屬矛盾時（拍數是音訊估的）：我方失誤 → 是沒回過去那一拍的人 base[N%4]；我方得分 → 前一拍 base[(N−2)%4]。 */
+function computeBy(winner, end_type, server, serverP, receiverP, rally){
+  if (!serverP || !rally || rally < 1) return null;
+  const base = [serverP, receiverP, partnerOf(serverP), partnerOf(receiverP)];
+  const N = Math.min(rally, 40);
+  const hit = base[(N - 1) % 4];
+  if (!end_type) return sideOf(hit) === 'me' ? hit : null;   // 結束方式未定：只看奇偶
+  const p = {winner, end_type};
+  const attributable = (winner === 'me' && (end_type === 'winner' || end_type === 'serve_win')) || isMyError(p, server);
+  if (!attributable) return null;
+  if (sideOf(hit) === 'me') return hit;
+  return isMyError(p, server) ? base[N % 4] : base[(N + 2) % 4];   // (N−2)%4 ≡ (N+2)%4
+}
 function serverAt(g, a, b){
   const first = firstServerOfGame(g);
   const total = a + b;
@@ -839,7 +869,7 @@ function derive(){
       if (p.rally != null && p.rally > 0) hitP = cycle[(k + Math.min(p.rally, 40) - 1) % 4];
     } else server = serverAt(g, a, b);
     const row = {...p, game:g, score_me:a, score_op:b, server, critical:isCritical(a,b)};
-    if (dbl){ row.serverP = serverP; row.receiverP = receiverP; row.hitP = hitP; row.by_auto = hitP && sideOf(hitP) === 'me' ? hitP : null; row.by = p.by || row.by_auto || null; }
+    if (dbl){ row.serverP = serverP; row.receiverP = receiverP; row.hitP = hitP; row.by_auto = computeBy(p.winner, p.end_type, server, serverP, receiverP, p.rally); row.by = p.by || row.by_auto || null; }
     if (p.winner === 'me') a++; else b++;
     row.after_me = a; row.after_op = b;
     out.push(row);
@@ -1306,9 +1336,7 @@ function startPoint(winner){
 /* 雙打：依 2.8.2 從發球輪與拍數推「我方最後一拍是誰」；D 鍵切換 */
 function updateByAuto(){
   if (!pending || !isDoubles() || !pending.serverP) return;
-  const base = [pending.serverP, pending.receiverP, partnerOf(pending.serverP), partnerOf(pending.receiverP)];
-  const hit = pending.rally ? base[(Math.min(pending.rally, 40) - 1) % 4] : null;
-  pending.by_auto = hit && sideOf(hit) === 'me' ? hit : null;
+  pending.by_auto = computeBy(pending.winner, pending.end_type, pending.server, pending.serverP, pending.receiverP, pending.rally);
   if (!pending.by_user) pending.by = pending.by_auto;
 }
 function toggleBy(){
@@ -1354,6 +1382,7 @@ function setEnd(code){
   if (!validEnds(pending).includes(code)) { toast(code==='R' ? '發球方沒贏這分，請用 T 發球失誤' : '發球方贏了這分，請用 R 發球得分'); return; }
   pending.end_type = ENDS[code];
   if (pending.end_type === 'serve_win' || pending.end_type === 'serve_fault') { if (pending.rally == null) pending.rally = pending.end_type==='serve_fault' ? 1 : 2; }
+  updateByAuto();
   if (isMyError(pending, pending.server)) { pending.stage = 'reason'; renderStep(); return; }
   if ($('askNote').checked && pending.winner === 'me' && (pending.end_type === 'winner' || pending.end_type === 'serve_win')) { pending.stage = 'note'; renderStep(); return; }
   commit();
@@ -1672,7 +1701,7 @@ function renderAnalysis(){
   const d = derive(); const rows = d.rows;
   $('anaTitle').textContent = (match.meta.title || '未命名比賽') + (isSample ? '　範例資料' : '');
   $('anaMeta').textContent = rows.length ? `${match.meta.date || ''}　${rows.length} 分　局數 ${d.gm}–${d.go}${d.matchOver ? (d.gm>d.go?'　勝':'　負') : ''}` : '';
-  fillReflections(); renderHighlights(rows);
+  fillReflections(); renderHighlights(rows); const dblIns = renderDoublesAnalysis(rows);
   const kp = $('kpis'); kp.innerHTML = '';
   const clearIds = ['insights','gamesTable','seriesBars','trajWrap','critBars','lossBars','noteList','reasonRally','winBars','streaks','mindKpis','driftTable'];
   if (!rows.length){ kp.innerHTML = '<div class="empty">還沒有資料。到「標註」開始記錄，或在「比賽資料」匯入 JSON。</div>'; clearIds.forEach(id => $(id).innerHTML=''); return; }
@@ -1840,6 +1869,7 @@ function renderAnalysis(){
     const a0 = l0.filter(r=>r.reason==='選擇太冒進').length, a2 = l2.filter(r=>r.reason==='選擇太冒進').length;
     if (l0.length >= 5 && l2.length >= 5 && a2 >= a0 + 2) ins.push([`後段「選擇太冒進」從 ${a0} 次升到 ${a2} 次。`, '比賽階段漂移']); }
   if (best >= 4){ const r0 = rows[bestAt]; ins.push([`最長一次連失 ${best} 分，發生在第 ${r0.game} 局 ${r0.score_me}–${r0.score_op}。`, '連續失分']); }
+  if (dblIns && dblIns.length) ins.push(...dblIns);
   lastInsights = ins;
   const ol = $('insights'); ol.innerHTML = '';
   if (!ins.length) ol.innerHTML = '<li class="quiet">各項指標都在門檻內，沒有特別突出的訊號。樣本少的時候這很正常。</li>';
@@ -1892,6 +1922,16 @@ function exportMarkdown(){
   fixed.forEach(v => { const n = withReason.filter(r=>r.reason===v).length; L.push(`| ${v} | ${n} | ${pct(n, myErr.length)} |`); });
   if (others.length) L.push(`| 其他（手寫） | ${others.length} | ${pct(others.length, myErr.length)} |`);
   if (myErr.length - withReason.length > 0) L.push(`| 未標原因 | ${myErr.length - withReason.length} | ${pct(myErr.length - withReason.length, myErr.length)} |`);
+  if (isDoubles()){
+    const st = doublesStats(rows); const myErrAll = st.per.me.err.length + st.per.pa.err.length;
+    L.push('', '## 雙打：我與搭檔', '', `搭檔 ${mdCell(m.partner) || '搭檔'}，對手 ${mdCell(m.opp1) || '對手1'}／${mdCell(m.opp2) || '對手2'}。以下只算「最後一拍在我方」的分；沒按 D 改過的分依 ITTF 2.8.2 擊球順序與拍數推導。`, '');
+    L.push('| 球員 | 最後一拍在他的分 | 拿分 | 失誤 | 失誤占我方失誤 | 主要失誤原因 |', '|---|---|---|---|---|---|');
+    for (const pl of ['me','pa']){ const x = st.per[pl]; L.push(`| ${mdCell(playerName(pl))} | ${x.rs.length} | ${x.won.length} | ${x.err.length} | ${pct(x.err.length, myErrAll)} | ${x.top ? `${mdCell(x.top[0])} ${x.top[1]} 次` : '—'} |`); }
+    L.push('', '### 四種發球輪的我方得分率', '', '| 發球 | 分數 | 我方得分率 |', '|---|---|---|');
+    st.serve.forEach(x => L.push(`| ${mdCell(playerName(x.pl))} | ${x.n} | ${pct(x.won, x.n)} |`));
+    L.push('', '### 接發配對', '', '| 發球 | 接發 | 分數 | 我方得分率 | 失分中我方失誤 |', '|---|---|---|---|---|');
+    st.pairList.forEach(x => L.push(`| ${mdCell(playerName(x.s))} | ${mdCell(playerName(x.r))} | ${x.n} | ${pct(x.won, x.n)} | ${pct(x.myErr, x.lost)} |`));
+  }
   const stars = rows.filter(r=>r.star);
   if (stars.length){
     L.push('', '## 好球', '', '| 局 | 比分 | 結束方式 | 備註 | 影片時間 |', '|---|---|---|---|---|');
@@ -2073,6 +2113,58 @@ function exportHighlightScript(){
 $('btnHlVideo').addEventListener('click', exportHighlightVideo);
 $('btnHlScript').addEventListener('click', exportHighlightScript);
 ['hlPre','hlPost'].forEach(id => $(id).addEventListener('input', () => renderHighlights(derive().rows)));
+
+/* ---------- 雙打分析：我與搭檔、四種發球輪、接發配對 ---------- */
+function doublesStats(rows){
+  const mine = rows.filter(r => r.by);   // 最後一拍在我方的分（我方得分或我方失誤）
+  const per = {};
+  for (const pl of ['me','pa']){
+    const rs = mine.filter(r => r.by === pl);
+    const won = rs.filter(r => r.winner === 'me'), lost = rs.filter(r => r.winner === 'op');
+    const err = lost.filter(r => r.end_type !== 'winner');
+    const rc = {}; err.forEach(r => { const k = r.reason || '未標'; rc[k] = (rc[k] || 0) + 1; });
+    per[pl] = {rs, won, lost, err, rc, top: Object.entries(rc).sort((a,b) => b[1]-a[1])[0], guessed: rs.filter(r => !match.points[rows.indexOf(r)] || !match.points[rows.indexOf(r)].by).length};
+  }
+  const serve = PLAYERS.map(pl => { const rs = rows.filter(r => r.serverP === pl); return {pl, n: rs.length, won: rs.filter(r => r.winner === 'me').length}; });
+  const pairs = {}; rows.forEach(r => { if (!r.serverP) return; const k = r.serverP + '>' + r.receiverP; (pairs[k] = pairs[k] || {s: r.serverP, r: r.receiverP, rs: []}).rs.push(r); });
+  const pairList = Object.values(pairs).map(x => ({...x, n: x.rs.length, won: x.rs.filter(r => r.winner === 'me').length, myErr: x.rs.filter(r => r.winner === 'op' && r.end_type !== 'winner').length, lost: x.rs.filter(r => r.winner === 'op').length}))
+    .sort((a,b) => PLAYERS.indexOf(a.s) - PLAYERS.indexOf(b.s) || PLAYERS.indexOf(a.r) - PLAYERS.indexOf(b.r));
+  return {mine, per, serve, pairList};
+}
+function renderDoublesAnalysis(rows){
+  const card = $('dblCard'); card.hidden = !isDoubles() || !rows.length;
+  if (card.hidden) return [];
+  const st = doublesStats(rows), ins = [];
+  const myErrAll = st.per.me.err.length + st.per.pa.err.length, myWonAll = st.per.me.won.length + st.per.pa.won.length;
+  // 我與搭檔
+  let h = '<thead><tr><th>球員</th><th>最後一拍在他的分</th><th>拿分</th><th>失誤</th><th>失誤占我方失誤</th><th>主要失誤原因</th><th>其中推導的</th></tr></thead><tbody>';
+  for (const pl of ['me','pa']){ const x = st.per[pl];
+    h += `<tr><td>${esc(playerName(pl))}</td><td class="mono">${x.rs.length}</td><td class="mono">${x.won.length}</td><td class="mono">${x.err.length}</td><td class="mono">${pct(x.err.length, myErrAll)}</td><td>${x.top ? `${esc(x.top[0])} ${x.top[1]} 次` : '—'}</td><td class="mono cap">${x.guessed}／${x.rs.length}</td></tr>`; }
+  $('dblPlayers').innerHTML = h + '</tbody>';
+  // 各自的失誤原因（合併兩人，標籤前綴球員）
+  const fixed = fixedReasons(); const items = [];
+  for (const pl of ['me','pa']){ const x = st.per[pl]; if (!x.err.length) continue;
+    fixed.forEach(v => { const n = x.err.filter(r => r.reason === v).length; if (n) items.push([`${playerName(pl)}：${v}`, n, x.err.length, pl === 'me']); });
+    const oth = x.err.filter(r => r.reason && !fixed.includes(r.reason)).length; if (oth) items.push([`${playerName(pl)}：其他（手寫）`, oth, x.err.length, pl === 'me']);
+    const un = x.err.filter(r => !r.reason).length; if (un) items.push([`${playerName(pl)}：未標`, un, x.err.length, pl === 'me']); }
+  bars($('dblReasonBars'), items.length ? items : [['尚無我方失誤', 0, 0, false]]);
+  // 四種發球輪
+  bars($('dblServeBars'), st.serve.map(x => [`${playerName(x.pl)} 發球`, x.won, x.n, sideOf(x.pl) === 'me']));
+  // 接發配對
+  let ph = '<thead><tr><th>發球</th><th>接發</th><th>分數</th><th>我方得分率</th><th>失分中我方失誤</th></tr></thead><tbody>';
+  st.pairList.forEach(x => { ph += `<tr><td>${esc(playerName(x.s))}</td><td>${esc(playerName(x.r))}</td><td class="mono">${x.n}</td><td class="mono">${pct(x.won, x.n)}</td><td class="mono">${pct(x.myErr, x.lost)}</td></tr>`; });
+  $('dblPairs').innerHTML = ph + '</tbody>';
+  // 自動摘要（雙打）
+  if (myErrAll >= 8){ const a = st.per.me.err.length / myErrAll, b = st.per.pa.err.length / myErrAll;
+    if (Math.abs(a - b) >= 0.3) ins.push([`我方失誤 ${Math.round(Math.max(a,b)*100)}% 集中在${a > b ? playerName('me') : playerName('pa')}身上（${Math.max(st.per.me.err.length, st.per.pa.err.length)}／${myErrAll}），先看那個人的原因分布。`, '雙打：我與搭檔']); }
+  const sv = st.serve.filter(x => x.n >= 6).map(x => ({...x, rate: x.won / x.n}));
+  if (sv.length >= 2){ const lo = sv.reduce((m, x) => x.rate < m.rate ? x : m), hi = sv.reduce((m, x) => x.rate > m.rate ? x : m);
+    if (Math.round(hi.rate*100) - Math.round(lo.rate*100) >= 15) ins.push([`${playerName(lo.pl)}發球時我方只拿 ${Math.round(lo.rate*100)}%（${lo.n} 分），${playerName(hi.pl)}發球時有 ${Math.round(hi.rate*100)}%。${sideOf(lo.pl) === 'me' ? '發球輪的第三板要檢討' : '接發輪的接發要檢討'}。`, '四種發球輪']); }
+  const pr = st.pairList.filter(x => x.n >= 5);
+  if (pr.length >= 2){ const lo = pr.reduce((m, x) => (x.won / x.n) < (m.won / m.n) ? x : m);
+    if (lo.won / lo.n <= 0.35) ins.push([`${playerName(lo.s)}發、${playerName(lo.r)}接這一組我方只拿 ${pct(lo.won, lo.n)}（${lo.n} 分），是對手最有效的配對。`, '接發配對']); }
+  return ins;
+}
 
 /* 心得欄：存進 match.reflections */
 function fillReflections(){
