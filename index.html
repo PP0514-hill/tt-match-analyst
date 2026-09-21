@@ -1956,7 +1956,8 @@ function withMatch(m, fn){ const keep = match; match = m; try { return fn(); } f
 function statsOf(m){
   const d = withMatch(m, () => derive()), rows = d.rows;
   const lost = rows.filter(r=>r.winner==='op');
-  return {m, d, rows,
+  const dbl = withMatch(m, () => isDoubles() ? doublesStats(rows) : null);
+  return {m, d, rows, dbl,
     won: rows.filter(r=>r.winner==='me'), lost,
     srv: rows.filter(r=>r.server==='me'), rcv: rows.filter(r=>r.server==='op'),
     crit: rows.filter(r=>r.critical), myErr: lost.filter(r=>r.end_type!=='winner'),
@@ -1990,7 +1991,7 @@ function renderMulti(){
   let h = '<div class="mt-wrap"><table class="mtable" id="multiTable"><thead><tr><th>日期</th><th>對手</th><th>結果</th><th>分數</th><th>總得分率</th><th>發球輪</th><th>接發輪</th><th>關鍵分</th><th>我方失誤占失分</th><th>平均拍數</th></tr></thead><tbody>';
   for (const st of all){
     const d = st.d, m = st.m.meta;
-    h += `<tr><td class="mono">${esc(m.date||'—')}</td><td>${esc(m.opponent||m.title||st.m._file||'—')}</td>` +
+    h += `<tr><td class="mono">${esc(m.date||'—')}</td><td>${esc(m.opponent||m.title||st.m._file||'—')}${st.dbl ? `<span class="cap" style="margin-left:6px">雙打・與 ${esc(m.partner||'搭檔')}</span>` : ''}</td>` +
       `<td class="mono">${d.matchOver ? (d.gm>d.go?'勝':'負') : '未完'} ${d.gm}–${d.go}</td><td class="mono">${st.rows.length}</td>` +
       `<td class="mono">${pct(st.won.length, st.rows.length)}</td><td class="mono">${pct(st.srv.filter(r=>r.winner==='me').length, st.srv.length)}</td>` +
       `<td class="mono">${pct(st.rcv.filter(r=>r.winner==='me').length, st.rcv.length)}</td><td class="mono">${pct(st.crit.filter(r=>r.winner==='me').length, st.crit.length)}</td>` +
@@ -2021,6 +2022,21 @@ function renderMulti(){
         `<td class="mono">${pct(w2('crit'), s2('crit'))}</td><td class="mono">${pct(s2('myErr'), s2('lost'))}</td></tr>`;
     }
     h += '</tbody></table></div>';
+  }
+  const dbls = all.filter(st => st.dbl);
+  if (dbls.length){
+    const byPartner = {}; dbls.forEach(st => { const k = (st.m.meta.partner || '').trim() || '（未填搭檔）'; (byPartner[k] = byPartner[k] || []).push(st); });
+    h += '<div class="mt-wrap"><table class="mtable" id="multiDbl"><thead><tr><th>搭檔</th><th>場次</th><th>戰績</th><th>總得分率</th><th>我的失誤占我方失誤</th><th>搭檔的失誤</th><th>我發球輪</th><th>搭檔發球輪</th><th>對手發球輪</th></tr></thead><tbody>';
+    for (const [name, sts] of Object.entries(byPartner)){
+      const sum = f => sts.reduce((a, st) => a + f(st), 0);
+      const meErr = sum(st => st.dbl.per.me.err.length), paErr = sum(st => st.dbl.per.pa.err.length), errAll = meErr + paErr;
+      const sv = pl => { const n = sum(st => st.dbl.serve.find(x => x.pl === pl).n), w = sum(st => st.dbl.serve.find(x => x.pl === pl).won); return [w, n]; };
+      const [wMe, nMe] = sv('me'), [wPa, nPa] = sv('pa'), [w1, n1] = sv('o1'), [w2, n2] = sv('o2');
+      h += `<tr><td>${esc(name)}</td><td class="mono">${sts.length}</td><td class="mono">${sts.filter(st=>st.d.matchOver&&st.d.gm>st.d.go).length} 勝 ${sts.filter(st=>st.d.matchOver&&st.d.gm<st.d.go).length} 負</td>` +
+        `<td class="mono">${pct(sum(st=>st.won.length), sum(st=>st.rows.length))}</td><td class="mono">${pct(meErr, errAll)}</td><td class="mono">${pct(paErr, errAll)}</td>` +
+        `<td class="mono">${pct(wMe, nMe)}</td><td class="mono">${pct(wPa, nPa)}</td><td class="mono">${pct(w1 + w2, n1 + n2)}</td></tr>`;
+    }
+    h += '</tbody></table></div><p class="cap" style="margin:8px 0 0">雙打彙整以搭檔分組；「失誤占我方失誤」只算最後一拍在我方的分，沒按 D 確認過的分是推導值。對手發球輪把兩位對手合併。</p>';
   }
   h += '<p class="cap" style="margin:12px 0 0">百分比以各場自己的分母計算。場次之間分數差距大時請留意樣本量；局制或每局分數不同的比賽放在一起比較要小心。</p>';
   box.innerHTML = h;
@@ -2238,7 +2254,7 @@ document.querySelectorAll('details.sec').forEach(d => {
 });
 /* 快捷鍵一覽的展開狀態 */
 { const kw = $('keysWrap');
-  try { kw.open = localStorage.getItem(LS_KEY+':keys') !== '0'; } catch(e){ kw.open = true; }
+  try { kw.open = localStorage.getItem(LS_KEY+':keys') === '1'; } catch(e){ kw.open = false; }   // 預設收合，展開過會記住
   kw.addEventListener('toggle', () => { try { localStorage.setItem(LS_KEY+':keys', kw.open ? '1' : '0'); } catch(e){} }); }
 /* 點分析／紀錄裡帶 data-seek 的元素 → 影片跳到那一段 */
 document.querySelector('.panel').addEventListener('click', e => {
