@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="robots" content="noindex">
 <meta name="theme-color" content="#ECEAE5">
-<!-- built 2026-09-20 from tt-match-analyst.html -->
+<!-- built 2026-09-22 from tt-match-analyst.html -->
 <title>再來一顆｜桌球逐分復盤</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500&family=Inter:wght@400;500&family=JetBrains+Mono:wght@400;500&display=swap">
 <style>
@@ -311,6 +311,10 @@ textarea.io{width:100%;min-height:160px;font-family:var(--pp-font-mono);font-siz
 }
 .chip.act{cursor:pointer;background:var(--pp-bg-card);border-color:var(--pp-line-strong);color:var(--pp-ink);font:inherit;font-size:12px;line-height:1.6}
 .chip.act:hover{background:var(--pp-bg-card-sub)}
+.quicknotes{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.quicknotes .qn{font-size:12px;padding:4px 10px;border:var(--bw) solid var(--pp-line);border-radius:6px;background:var(--pp-bg-card);cursor:pointer;color:var(--pp-ink);max-width:100%;text-align:left;line-height:1.5}
+.quicknotes .qn:hover{background:var(--pp-bg-card-sub);border-color:var(--pp-line-strong)}
+@media(pointer:coarse){.quicknotes .qn{padding:8px 12px;font-size:13px}}
 .rallypick{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:12px}
 .rallypick:empty{display:none}
 .rallypick .rp{font-family:var(--pp-font-mono);font-size:13px;min-width:34px;height:32px;padding:0 8px;border:var(--bw) solid var(--pp-line);border-radius:var(--r-ctl);background:var(--pp-bg-card);cursor:pointer}
@@ -362,6 +366,10 @@ textarea.io{width:100%;min-height:160px;font-family:var(--pp-font-mono);font-siz
       </select>
       <button class="btn small" id="btnSwap" type="button">更換影片來源</button>
       <label class="ck" id="autoPauseWrap" hidden title="依擊球聲切出的回合，結束後自動暫停並問誰得分"><input type="checkbox" id="autoPause" checked>回合結束自動暫停</label>
+      <label class="ck" id="skipGapsWrap" hidden title="回合結束後繼續播放時，直接跳到下一段回合開始前一秒，撿球聊天的空檔不看"><input type="checkbox" id="skipGaps" checked>跳過回合間空檔</label>
+      <button class="btn small" id="btnReplay" type="button" hidden title="P：以 0.5 倍速重看播放頭所在的這段回合">重播回合</button>
+      <button class="btn small" id="btnPrevRally" type="button" hidden title="[：上一段回合">‹ 段</button>
+      <button class="btn small" id="btnNextRally" type="button" hidden title="]：下一段回合">段 ›</button>
       <span class="spacer"></span>
       <button class="btn small" id="btnUndo" type="button">復原上一分 (Backspace)</button>
     </div>
@@ -374,11 +382,14 @@ textarea.io{width:100%;min-height:160px;font-family:var(--pp-font-mono);font-siz
       <span><kbd>Q</kbd> <kbd>W</kbd> <kbd>E</kbd></span><span>結束方式：主動得分／受迫失誤／非受迫失誤</span>
       <span><kbd>R</kbd> <kbd>T</kbd></span><span>發球得分（含對方吃發球）／發球失誤；依當分發球方自動判定可用哪一個</span>
       <span><kbd>Z</kbd> <kbd>X</kbd> <kbd>C</kbd> <kbd>V</kbd> <kbd>B</kbd></span><span>我方失誤原因：步法沒到／旋轉判斷錯／選擇太冒進／純執行失誤／其他（手寫）</span>
-      <span><kbd>N</kbd></span><span>編輯播放頭所在那一分的原因與備註（回頭看也能改）；逐分紀錄的「原因／備註」格直接點也可以。我主動得分或發球得分後會自動問備註（Enter 略過）</span>
+      <span><kbd>N</kbd></span><span>編輯播放頭所在那一分的原因與備註（回頭看也能改）；逐分紀錄的「原因／備註」格直接點也可以。預設我方得分後不會跳備註欄，要問的話到〔比賽資料〕開啟</span>
       <span><kbd>H</kbd></span><span>標記好球：輸入中按下標記這一分；沒在輸入時標記播放頭所在的那一分（回頭看也能標），逐分紀錄每列前的 ★ 也可點；好球會進時間軸與分析頁的好球集，可一鍵剪成影片</span>
       <span><kbd>1</kbd>–<kbd>9</kbd> <kbd>0</kbd></span><span>拍數（0 ＝ 10 拍以上）；有擊球時間戳時自動帶入</span>
-      <span><kbd>Space</kbd></span><span>播放／暫停</span>
+      <span><kbd>Space</kbd></span><span>播放／暫停；開著「跳過回合間空檔」時，回合結束後繼續會直接跳到下一段</span>
       <span><kbd>←</kbd> <kbd>→</kbd></span><span>回跳／前進 3 秒（Shift：15 秒）</span>
+      <span><kbd>P</kbd></span><span>以 0.5 倍速重播這段回合，看完自動停</span>
+      <span><kbd>,</kbd> <kbd>.</kbd></span><span>暫停時前後一格（約 1／30 秒）</span>
+      <span><kbd>[</kbd> <kbd>]</kbd></span><span>上一段／下一段回合</span>
       <span><kbd>S</kbd></span><span>切換本局首發球方（漏標修正）</span>
       <span><kbd>Esc</kbd></span><span>取消目前這分的輸入</span>
     </div>
@@ -578,7 +589,8 @@ textarea.io{width:100%;min-height:160px;font-family:var(--pp-font-mono);font-siz
         <span><kbd>Q</kbd> <kbd>W</kbd> <kbd>E</kbd></span><span>主動得分／受迫失誤／非受迫失誤</span>
         <span><kbd>H</kbd></span><span>標記好球</span>
         <span><kbd>N</kbd></span><span>補原因與備註</span>
-        <span><kbd>Space</kbd></span><span>播放／暫停</span>
+        <span><kbd>Space</kbd></span><span>播放／暫停；回合間空檔會自動跳過</span>
+        <span><kbd>P</kbd></span><span>慢速重播這段回合</span>
         <span><kbd>Backspace</kbd></span><span>復原上一分</span>
       </div>
       <p class="cap" style="margin:14px 0 0">拍數不準或回合切得亂：〔比賽資料〕調音訊靈敏度再分析。手機沒鍵盤：每個鍵都有對應按鈕。</p>
@@ -607,6 +619,7 @@ textarea.io{width:100%;min-height:160px;font-family:var(--pp-font-mono);font-siz
         <span class="cap" style="flex:2;align-self:end">影片從中途開始錄時填已打完的局數；〔標註〕的開始前確認卡也能改。</span>
       </div>
       <label class="f">備註<input type="text" id="mNote" placeholder="場地、器材、狀態……"></label>
+      <label class="ck" style="display:inline-flex;align-items:center;gap:8px;font-size:13px;color:var(--pp-ink-sub);cursor:pointer"><input type="checkbox" id="askNote">我方得分後自動跳出備註欄（關閉時每顆自己贏的球少按一鍵，想寫再按 N）</label>
       <div class="row">
         <button class="btn accent" id="btnNew" type="button">開新比賽（清除目前紀錄）</button>
         <span class="cap">變更設定會即時重算發球方與局數。</span>
@@ -782,11 +795,59 @@ const P = {
   get time(){ if (!this.loaded) return 0; return this.kind === 'yt' ? (this.yt.getCurrentTime() || 0) : video.currentTime; },
   get paused(){ if (!this.loaded) return true; return this.kind === 'yt' ? this.yt.getPlayerState() !== 1 : video.paused; },
   seekTo(t){ if (!this.loaded) return; t = Math.max(0, Math.min(this.duration || t, t)); if (this.kind === 'yt') { this.yt.seekTo(t, true); onTime(); } else video.currentTime = t; },
+  userSeekTo(t){ stopReplay(true); this.seekTo(t); },
   seekBy(d){ this.seekTo(this.time + d); },
   toggle(){ if (!this.loaded) return; if (this.kind === 'yt') { this.paused ? this.yt.playVideo() : this.yt.pauseVideo(); } else { video.paused ? video.play() : video.pause(); } },
   setRate(r){ if (!this.loaded) return; if (this.kind === 'yt') this.yt.setPlaybackRate(r); else video.playbackRate = r; },
 };
-function onTime(){ $('tcur').textContent = fmtT(P.time); checkAutoPause(P.time); syncToTime(P.time); drawTimeline(); }
+function onTime(){ $('tcur').textContent = fmtT(P.time); checkReplay(P.time); checkAutoPause(P.time); checkSkipGap(P.time); syncToTime(P.time); drawTimeline(); }   // 先判自動暫停再判跳空檔：同一個 timeupdate 同時越過兩個門檻時，要停下來問而不是跳走
+/* ---- 回合輔助 ---- */
+const rallies = () => (onsets && onsets.rallies) || [];
+function rallyIndexAt(t){ const rl = rallies(); let idx = -1; for (let i = 0; i < rl.length; i++){ if (rl[i].start - 1.0 <= t) idx = i; else break; } return idx; }   // 播放頭所在或剛結束的那段；段首前 1 秒的導入區也算這段
+/* 跳過回合間空檔：從回合裡自然播出去、進入空檔時，直接跳到下一段開始前 0.8s。只在「越過」那一刻觸發，手動拉進空檔不會被搶走。 */
+let prevGapT = 0, replay = null;
+function checkSkipGap(t){
+  const rl = rallies(); const on = $('skipGaps').checked;
+  if (t < prevGapT){ prevGapT = t; return; }
+  if (!on || !rl.length || exporting || replay || !P.loaded || P.paused || pending){ prevGapT = t; return; }
+  for (let i = 0; i < rl.length - 1; i++){
+    const leave = rl[i].end + 1.0;
+    if (leave <= prevGapT) continue; if (leave > t) break;
+    const nextStart = rl[i+1].start;
+    if (nextStart - rl[i].end > 2.5){ prevGapT = nextStart - 0.8; P.seekTo(nextStart - 0.8); toast(`跳過 ${Math.round(nextStart - rl[i].end)} 秒空檔`); return; }
+    break;
+  }
+  prevGapT = t;
+}
+/* 回合重播：0.5 倍速從這段回合開頭播到結尾後 0.6s，自動停並還原速度 */
+function replayRally(){
+  const rl = rallies(); if (!P.loaded || P.kind !== 'file') { toast('重播需要本機影片與回合資料'); return; }
+  const i = rallyIndexAt(P.time); if (i < 0){ toast('這裡沒有偵測到的回合'); return; }
+  replay = {end: rl[i].end + 0.6, rate: video.playbackRate, idx: i};
+  video.playbackRate = 0.5; $('speed').value = '0.5';
+  P.seekTo(Math.max(0, rl[i].start - 0.5)); video.play().catch(()=>{});
+  toast(`重播第 ${i+1} 段回合（${rl[i].hits} 拍，0.5×）`);
+}
+function stopReplay(restore){
+  if (!replay) return;
+  if (restore !== false){ video.playbackRate = replay.rate; $('speed').value = String(replay.rate); }
+  replay = null;
+}
+function checkReplay(t){
+  if (!replay) return;
+  if (t >= replay.end){ video.pause(); stopReplay(true); toast('重播結束'); }
+}
+function stepFrame(dir){ if (!P.loaded) return; if (!P.paused) P.toggle(); P.seekTo(P.time + dir / 30); }
+function jumpRally(dir){
+  const rl = rallies(); if (!rl.length){ toast('沒有回合資料'); return; }
+  const t = P.time; let i = rallyIndexAt(t);
+  if (dir > 0) i = Math.min(rl.length - 1, i + 1);
+  else { if (i >= 0 && t > rl[i].start + 1.5) {/* 還在這段裡：回到這段開頭 */} else i = Math.max(0, i - 1); }
+  P.seekTo(Math.max(0, rl[i].start - 0.8)); toast(`第 ${i+1}／${rl.length} 段回合`);
+}
+$('btnReplay').addEventListener('click', replayRally);
+$('btnPrevRally').addEventListener('click', () => jumpRally(-1));
+$('btnNextRally').addEventListener('click', () => jumpRally(1));
 /* 播放頭在第幾分：這一分的區間是［前一分 t_end，本分 t_end）；超過最後一分回 -1（＝現場） */
 function pointIndexAt(rows, t){
   let idx = -1;
@@ -927,8 +988,8 @@ $('ytShield').addEventListener('click', () => { P.toggle(); window.focus(); });
 video.addEventListener('click', () => { if (P.kind === 'file' && P.loaded) P.toggle(); });   // 手機沒有 Space：點影片播放／暫停
 $('btnSrv').addEventListener('click', () => toggleServer());   // 蓋在 iframe 上：點擊播放／暫停，鍵盤焦點留在本頁
 /* -- 共用控制 -- */
-function togglePlay(){ P.toggle(); }
-function seek(d){ P.seekBy(d); }
+function togglePlay(){ if (replay) stopReplay(true); P.toggle(); }
+function seek(d){ stopReplay(true); P.seekBy(d); }
 $('btnPlay').addEventListener('click', togglePlay);
 $('btnBack').addEventListener('click', () => seek(-3));
 $('btnFwd').addEventListener('click', () => seek(3));
@@ -1124,7 +1185,7 @@ async function analyzeAudio(file){
     const secs = ((performance.now() - t0) / 1000).toFixed(1);
     info.textContent = `已分析：${hits.length} 次擊球、${rallies.length} 段回合（靈敏度 ${sens}，${secs} 秒）`;
     tl.textContent = `擊球聲 ${hits.length} 筆、回合 ${rallies.length} 段；標分時自動帶入拍數，回合結束會自動暫停`;
-    $('autoPauseWrap').hidden = !rallies.length;
+    $('autoPauseWrap').hidden = !rallies.length; showRallyControls(!!rallies.length);
     drawTimeline(); toast(`音軌分析完成：${rallies.length} 段回合`);
   } catch(e){
     info.textContent = '這個檔案的音軌無法在瀏覽器內解碼（' + (e && e.message || e) + '）。可改用 tt_rally_onsets.py 產生 onsets.json 匯入。';
@@ -1134,7 +1195,12 @@ async function analyzeAudio(file){
 $('btnReanalyze').addEventListener('click', () => analyzeAudio(lastVideoFile));
 $('firstTime').addEventListener('click', e => { e.stopPropagation(); $('tab-help').click(); });
 $('sensSel').addEventListener('change', () => { if (lastVideoFile) analyzeAudio(lastVideoFile); });
+function showRallyControls(on){ ['skipGapsWrap','btnReplay','btnPrevRally','btnNextRally'].forEach(id => $(id).hidden = !on); }
 try { $('autoPause').checked = localStorage.getItem(LS_KEY+':autopause') !== '0'; } catch(e){}
+try { $('skipGaps').checked = localStorage.getItem(LS_KEY+':skipgaps') !== '0'; } catch(e){}
+$('skipGaps').addEventListener('change', () => { try { localStorage.setItem(LS_KEY+':skipgaps', $('skipGaps').checked ? '1' : '0'); } catch(e){} });
+try { $('askNote').checked = localStorage.getItem(LS_KEY+':asknote') === '1'; } catch(e){}
+$('askNote').addEventListener('change', () => { try { localStorage.setItem(LS_KEY+':asknote', $('askNote').checked ? '1' : '0'); } catch(e){} });
 $('autoPause').addEventListener('change', () => { try { localStorage.setItem(LS_KEY+':autopause', $('autoPause').checked ? '1' : '0'); } catch(e){} });
 
 /* ---------- annotation flow ---------- */
@@ -1188,7 +1254,7 @@ function setEnd(code){
   pending.end_type = ENDS[code];
   if (pending.end_type === 'serve_win' || pending.end_type === 'serve_fault') { if (pending.rally == null) pending.rally = pending.end_type==='serve_fault' ? 1 : 2; }
   if (isMyError(pending, pending.server)) { pending.stage = 'reason'; renderStep(); return; }
-  if (pending.winner === 'me' && (pending.end_type === 'winner' || pending.end_type === 'serve_win')) { pending.stage = 'note'; renderStep(); return; }
+  if ($('askNote').checked && pending.winner === 'me' && (pending.end_type === 'winner' || pending.end_type === 'serve_win')) { pending.stage = 'note'; renderStep(); return; }
   commit();
 }
 function setReason(code){
@@ -1201,10 +1267,31 @@ function setRally(n){
   if (pending){ pending.rally = n; pending.rally_auto = false; bump(); renderStep(); }
   else { rallyBuffer = n; renderStep(); }
 }
+/* 常用備註：跨場累計出現次數，存 localStorage；備註階段與編輯器列出最常用的幾句，一鍵帶入 */
+function noteHist(){ try { return JSON.parse(localStorage.getItem(LS_KEY+':notehist') || '{}'); } catch(e){ return {}; } }
+function rememberNote(t){
+  t = (t || '').trim(); if (!t || t.length > 60) return;
+  const h = noteHist(); h[t] = (h[t] || 0) + 1;
+  const top = Object.entries(h).sort((a,b) => b[1]-a[1]).slice(0, 60);
+  try { localStorage.setItem(LS_KEY+':notehist', JSON.stringify(Object.fromEntries(top))); } catch(e){}
+}
+function quickNotes(limit){
+  const h = noteHist(); const seen = new Set(); const out = [];
+  match.points.slice().reverse().forEach(p => { const t = (p.note || '').trim(); if (t && !seen.has(t)){ seen.add(t); out.push(t); } });   // 這場用過的先列
+  Object.entries(h).sort((a,b) => b[1]-a[1]).forEach(([t]) => { if (!seen.has(t)){ seen.add(t); out.push(t); } });
+  return out.slice(0, limit || 8);
+}
+function quickNoteBar(onPick){
+  const list = quickNotes(8); if (!list.length) return null;
+  const bar = document.createElement('div'); bar.className = 'quicknotes';
+  list.forEach(t => { const b = document.createElement('button'); b.type = 'button'; b.className = 'qn'; b.textContent = t; b.title = '帶入這句'; b.addEventListener('mousedown', e => e.preventDefault()); b.addEventListener('click', () => onPick(t)); bar.append(b); });
+  return bar;
+}
 function commit(){
   const wasOver = derive().matchOver;
   const p = {winner:pending.winner, end_type:pending.end_type, reason:pending.reason, note:pending.note || '', rally:pending.rally ?? null, t_end:pending.t_end};
   if (pending.star) p.star = true;
+  rememberNote(p.note);
   if (pending.t0){ p.ann = {keys: pending.keys || 1, sec: +((performance.now() - pending.t0) / 1000).toFixed(1)}; }
   match.ann = match.ann || {}; const now = Date.now(); if (!match.ann.first) match.ann.first = now; match.ann.last = now;
   match.points.push(p);
@@ -1238,6 +1325,7 @@ function saveEdit(){
   const rIn = $('stepReason'), nIn = $('stepText');
   if (rIn && isMyError(p, row.server)){ const v = rIn.value.trim(); if (v) p.reason = v; else if (!Object.values(REASONS).includes(p.reason)) p.reason = null; }
   if (nIn) p.note = nIn.value.trim();
+  rememberNote(p.note);
   noteTarget = null; save(); renderAll(); toast(`第 ${i+1} 分已更新`);
 }
 function editBox(id, label, value, placeholder){
@@ -1282,6 +1370,11 @@ function handleKey(e){
   if (k === 'Space' || e.key === ' '){ e.preventDefault(); togglePlay(); return; }
   if (k === 'ArrowLeft'){ e.preventDefault(); seek(e.shiftKey ? -15 : -3); return; }
   if (k === 'ArrowRight'){ e.preventDefault(); seek(e.shiftKey ? 15 : 3); return; }
+  if (code === 'KeyP'){ e.preventDefault(); replayRally(); return; }
+  if (code === 'Comma'){ e.preventDefault(); stepFrame(-1); return; }
+  if (code === 'Period'){ e.preventDefault(); stepFrame(1); return; }
+  if (code === 'BracketLeft'){ e.preventDefault(); jumpRally(-1); return; }
+  if (code === 'BracketRight'){ e.preventDefault(); jumpRally(1); return; }
   if (!annotOn) return;
   if (k === 'Backspace'){ e.preventDefault(); undo(); return; }
   if (k === 'Escape'){ cancelPending(); return; }
@@ -1333,6 +1426,7 @@ function renderStep(){
       box.append(rc, editBox('stepReason', '其他原因（手寫，留空則沿用上面選的）', Object.values(REASONS).includes(p.reason) ? '' : (p.reason || ''), '例：對手側旋發球，回球出界'));
     }
     box.append(editBox('stepText', '備註', p.note, '例：反手位短下旋，等他擺短再搶攻'));
+    const qb = quickNoteBar(t => { const inp = $('stepText'); if (inp){ inp.value = t; inp.focus(); } }); if (qb) box.append(qb);
     const h = document.createElement('div'); h.className = 'hint'; h.textContent = 'Enter 儲存，Esc 取消'; box.append(h);
     ch.append(box);
     pend.append(chip('Esc 取消', false, cancelPending));
@@ -1373,6 +1467,7 @@ function renderStep(){
       chips.push(chip(endLabel(pending.end_type, pending.winner, pending.server), true));
       q.textContent = '這一分的策略考量？';
       ch.append(textBox('例：連兩顆長球後改短下旋，他站位已退', '', 'Enter 儲存並進下一分，Esc 略過。輸入法選字的 Enter 不會送出'));
+      const qb = quickNoteBar(t => { pending.note = t; bump(); commit(); }); if (qb) ch.append(qb);
     }
     pend.append(chip(pending.star ? 'H 取消好球' : 'H 好球', false, toggleStar));
     pend.append(chip('Esc 取消', false, cancelPending));
@@ -2081,7 +2176,7 @@ $('onsetFile').addEventListener('change', e => { const f = e.target.files[0]; if
   const o = JSON.parse(t); if (!Array.isArray(o.hits)) throw new Error('缺 hits');
   onsets = o; $('onsetInfo').textContent = `已載入：${o.hits.length} 次擊球、${(o.rallies||[]).length} 段回合${o.source?'（'+o.source+'）':''}`;
   $('tlInfo').textContent = `擊球時間戳 ${o.hits.length} 筆；標分時自動帶入拍數`;
-  $('autoPauseWrap').hidden = !(o.rallies && o.rallies.length); autoPauseIdx = -1;
+  $('autoPauseWrap').hidden = !(o.rallies && o.rallies.length); autoPauseIdx = -1; showRallyControls(!!(o.rallies && o.rallies.length));
   drawTimeline(); toast('已載入擊球時間戳');
 }).catch(err => toast('無法解析：' + err.message)); e.target.value=''; });
 
@@ -2154,7 +2249,7 @@ async function listCloud(){
 }
 
 /* ---------- 測試用除錯鉤子（唯讀） ---------- */
-window.ttDebug = () => ({onsets, pending, match, isSample, autoPauseIdx, prevT, loaded: P.loaded, paused: P.paused, autoPause: $('autoPause').checked, derived: derive()});
+window.ttDebug = () => ({onsets, pending, match, isSample, autoPauseIdx, prevT, loaded: P.loaded, paused: P.paused, autoPause: $('autoPause').checked, derived: derive(), replay, skipGaps: $('skipGaps').checked, askNote: $('askNote').checked});
 
 /* ---------- boot ---------- */
 if (!restore()) loadSample();
