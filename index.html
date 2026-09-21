@@ -82,12 +82,14 @@ kbd{font-family:var(--pp-font-mono);font-size:12px;border:var(--bw) solid var(--
 #ytHost,#ytHost iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
 #ytShield{position:absolute;inset:0;cursor:pointer}
 /* 影片左上角的即時比分 */
-.scorebug{position:absolute;top:10px;left:10px;z-index:2;pointer-events:none;background:rgba(20,19,17,.78);color:#fff;border-radius:6px;padding:6px 12px;display:flex;align-items:center;gap:10px;font-size:13px;line-height:1.2}
+.scorebug{position:absolute;top:10px;left:10px;z-index:2;pointer-events:none;background:rgba(20,19,17,.78);color:#fff;border-radius:6px;padding:6px 12px;display:flex;align-items:center;gap:10px;font-size:13px;line-height:1.2;white-space:nowrap;max-width:calc(100% - 20px);overflow:hidden}
+.scorebug>span{white-space:nowrap}
+.scorebug .g{overflow:hidden;text-overflow:ellipsis}
 .scorebug .pts{font-family:var(--pp-font-mono);font-size:22px;font-weight:500;letter-spacing:.02em}
 .scorebug .g{color:#CFCBC3}
 .scorebug .srv{width:6px;height:6px;border-radius:50%;background:var(--pp-accent);display:inline-block;vertical-align:middle;margin:0 4px;visibility:hidden}
 .scorebug .srv.on{visibility:visible}
-@media(max-width:600px){.scorebug{top:6px;left:6px;padding:4px 8px;font-size:12px}.scorebug .pts{font-size:18px}}
+@media(max-width:600px){.scorebug{top:6px;left:6px;padding:4px 8px;font-size:12px;gap:8px}.scorebug .pts{font-size:18px}.scorebug .sr{display:none}}
 /* 怎麼用 */
 .help{display:grid;gap:20px}
 .help .lead{font-size:16px;line-height:1.7;margin:0}
@@ -962,7 +964,7 @@ function renderScoreBug(rows, idx){
   if (isDoubles()){ if (idx >= 0 && idx < rows.length){ sp = rows[idx].serverP; rp = rows[idx].receiverP; } else { sp = d.serverP; rp = d.receiverP; } }
   const nameMe = isDoubles() ? `${esc(match.meta.me||'我')}／${esc(match.meta.partner||'搭檔')}` : esc(match.meta.me||'我');
   const nameOp = isDoubles() ? `${esc(match.meta.opp1||'對手1')}／${esc(match.meta.opp2||'對手2')}` : esc(match.meta.opponent||'對手');
-  sb.innerHTML = `<span><span class="srv ${srv==='me'&&!d.matchOver?'on':''}"></span>${nameMe}</span><span class="pts">${a}–${b}</span><span>${nameOp}<span class="srv ${srv==='op'&&!d.matchOver?'on':''}"></span></span><span class="g">第 ${g} 局 · 局 ${gm}–${go}${sp && !d.matchOver ? ` · ${esc(playerName(sp))} 發 → ${esc(playerName(rp))}` : ''}${review?' · 回看':''}</span>`;
+  sb.innerHTML = `<span><span class="srv ${srv==='me'&&!d.matchOver?'on':''}"></span>${nameMe}</span><span class="pts">${a}–${b}</span><span>${nameOp}<span class="srv ${srv==='op'&&!d.matchOver?'on':''}"></span></span><span class="g">第 ${g} 局 · 局 ${gm}–${go}${sp && !d.matchOver ? `<span class="sr"> · ${esc(playerName(sp))} 發 → ${esc(playerName(rp))}</span>` : ''}${review?' · 回看':''}</span>`;
 }
 /* 回合結束自動暫停：播放頭越過某段回合 end＋0.8s 時暫停，只問誰得分。已記錄過的回合、目前正在輸入時不觸發。 */
 function checkAutoPause(t){
