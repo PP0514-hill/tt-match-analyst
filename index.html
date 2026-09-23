@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="robots" content="noindex">
 <meta name="theme-color" content="#ECEAE5">
-<!-- built 2026-09-22 from tt-match-analyst.html -->
+<!-- built 2026-09-24 from tt-match-analyst.html -->
 <title>再來一顆｜桌球逐分復盤</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500&family=Inter:wght@400;500&family=JetBrains+Mono:wght@400;500&display=swap">
 <style>
@@ -186,6 +186,13 @@ kbd{font-family:var(--pp-font-mono);font-size:12px;border:var(--bw) solid var(--
 .log .me{color:var(--pp-accent-deep)}
 .log .star{color:var(--pp-accent)}
 .cap.warn{color:var(--pp-accent-deep)}
+.banner{background:var(--pp-accent-soft);border-radius:var(--r-ctl);padding:12px 14px;margin-bottom:14px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;font-size:14px;color:var(--pp-accent-deep)}
+.banner .btn{background:#fff}
+.liblist{display:grid;gap:6px}
+.liblist .it{display:flex;gap:10px;align-items:center;padding:8px 10px;border:var(--bw) solid var(--pp-line);border-radius:var(--r-ctl);font-size:13px;flex-wrap:wrap}
+.liblist .it.cur{border-color:var(--pp-accent);background:var(--pp-accent-soft)}
+.liblist .it .t{flex:1;min-width:160px}
+.liblist .it .v{color:var(--pp-ink-hint);font-size:12px}
 .mt-wrap{overflow-x:auto;margin-top:12px}
 .mt-wrap .mtable th,.mt-wrap .mtable td{white-space:nowrap}
 .mt-wrap+.mt-wrap{margin-top:20px}
@@ -414,6 +421,7 @@ textarea.io{width:100%;min-height:160px;font-family:var(--pp-font-mono);font-siz
 <!-- ================= 標註 ================= -->
 <section id="pane-annot">
   <div class="card">
+    <div class="banner" id="libBanner" hidden role="status"></div>
     <div class="setup" id="setupCard" hidden>
       <div class="row" style="justify-content:space-between;align-items:baseline"><h3>開始前確認</h3><span class="cap">記下第一分後這張卡會收起</span></div>
       <div class="srow"><span>單打或雙打</span>
@@ -658,7 +666,7 @@ textarea.io{width:100%;min-height:160px;font-family:var(--pp-font-mono);font-siz
       <label class="f">備註<input type="text" id="mNote" placeholder="場地、器材、狀態……"></label>
       <label class="ck" style="display:inline-flex;align-items:center;gap:8px;font-size:13px;color:var(--pp-ink-sub);cursor:pointer"><input type="checkbox" id="askNote">我方得分後自動跳出備註欄（關閉時每顆自己贏的球少按一鍵，想寫再按 N）</label>
       <div class="row">
-        <button class="btn accent" id="btnNew" type="button">開新比賽（清除目前紀錄）</button>
+        <button class="btn accent" id="btnNew" type="button">開新比賽（目前這場留在本機紀錄）</button>
         <span class="cap">變更設定會即時重算發球方與局數。</span>
       </div>
     </div>
@@ -697,6 +705,11 @@ textarea.io{width:100%;min-height:160px;font-family:var(--pp-font-mono);font-siz
           <button class="btn small" id="btnIoDump" type="button">把目前比賽輸出到上方</button>
         </div>
       </details>
+      <div>
+        <h3 style="margin-top:8px">本機紀錄</h3>
+        <p class="cap" style="margin:4px 0 10px">每一場標過的比賽都留在這台電腦的瀏覽器裡（最多 60 場）。載入影片時會用檔名、大小、修改時間認出同一支影片，自動帶回紀錄；音軌分析結果也會記住。清瀏覽器資料會全部消失，重要的請匯出 JSON。</p>
+        <div class="liblist" id="libList"></div>
+      </div>
       <div id="cloudBox" hidden>
         <h3 style="margin-top:8px">雲端存檔</h3>
         <p class="cap" style="margin:4px 0 10px">存在這個頁面的資料庫裡，不含影片。之後可以直接請 Claude 讀取做進一步分析。</p>
@@ -1037,10 +1050,10 @@ function loadVideoFile(file){
   P.kind = 'file'; video.hidden = false;
   video.src = URL.createObjectURL(file);
   videoName = file.name; lastVideoFile = file;
-  video.addEventListener('loadedmetadata', () => { afterLoad(file.name); analyzeAudio(file); }, {once:true});
+  video.addEventListener('loadedmetadata', () => { afterLoad(file.name); onVideoLoaded(file); analyzeAudio(file); }, {once:true});
 }
 $('pickVideoBtn').addEventListener('click', () => $('videoFile').click());
-$('videoFile').addEventListener('change', e => loadVideoFile(e.target.files[0]));
+$('videoFile').addEventListener('change', e => { loadVideoFile(e.target.files[0]); e.target.value = ''; });   // 清空，再選同一支影片也會觸發 change
 const stage = $('stage');
 ['dragenter','dragover'].forEach(ev => stage.addEventListener(ev, e => { e.preventDefault(); }));
 stage.addEventListener('drop', e => {
@@ -1278,11 +1291,20 @@ function groupRallies(hits, gap, minHits){
   if (n >= minHits) out.push({start, end: prev, hits: n});
   return out;
 }
-async function analyzeAudio(file){
+async function analyzeAudio(file, force){
   if (!file) return;
   const job = ++audioJob; const sens = +($('sensSel').value || 0.35);
   const info = $('onsetInfo'), tl = $('tlInfo');
   $('btnReanalyze').disabled = true;
+  const fp = videoFp(file), cached = !force && fp ? onsetsCacheRead(fp) : null;
+  if (cached && cached.hits){
+    onsets = {...cached, cached: true}; autoPauseIdx = -1;
+    info.textContent = `使用先前的分析結果：${cached.hits.length} 次擊球、${(cached.rallies||[]).length} 段回合（靈敏度 ${cached.params && cached.params.sens}）。要重算請按「重新分析音軌」。`;
+    tl.textContent = `擊球聲 ${cached.hits.length} 筆、回合 ${(cached.rallies||[]).length} 段（快取）；標分時自動帶入拍數，回合結束會自動暫停`;
+    $('autoPauseWrap').hidden = !(cached.rallies||[]).length; showRallyControls(!!(cached.rallies||[]).length);
+    if (cached.params && cached.params.sens) $('sensSel').value = String(cached.params.sens);
+    drawTimeline(); $('btnReanalyze').disabled = false; return;
+  }
   if (file.size > AUDIO.maxBytes){ info.textContent = '影片超過 1.5 GB，瀏覽器內不分析音軌；請用 tt_rally_onsets.py 產生 onsets.json 匯入。'; $('btnReanalyze').disabled = false; return; }
   const t0 = performance.now();
   const say = m => { if (job === audioJob){ info.textContent = m; tl.textContent = m; } };
@@ -1295,7 +1317,7 @@ async function analyzeAudio(file){
     const hits = pickPeaks(env, sr, sens);
     const rallies = groupRallies(hits, AUDIO.gap, AUDIO.minHits);
     onsets = {source: file.name, duration: +(data.length / sr).toFixed(2), engine: 'web-audio', params: {band: AUDIO.band, sens, min_hit_gap: AUDIO.minHitGap, gap: AUDIO.gap, min_hits: AUDIO.minHits, sr}, hits, rallies};
-    autoPauseIdx = -1;
+    autoPauseIdx = -1; if (fp) onsetsCacheWrite(fp, onsets);
     const secs = ((performance.now() - t0) / 1000).toFixed(1);
     info.textContent = `已分析：${hits.length} 次擊球、${rallies.length} 段回合（靈敏度 ${sens}，${secs} 秒）`;
     tl.textContent = `擊球聲 ${hits.length} 筆、回合 ${rallies.length} 段；標分時自動帶入拍數，回合結束會自動暫停`;
@@ -1306,9 +1328,9 @@ async function analyzeAudio(file){
     tl.textContent = '影片就緒。音軌無法分析，拍數需手動輸入。';
   } finally { if (job === audioJob) $('btnReanalyze').disabled = !lastVideoFile; }
 }
-$('btnReanalyze').addEventListener('click', () => analyzeAudio(lastVideoFile));
+$('btnReanalyze').addEventListener('click', () => analyzeAudio(lastVideoFile, true));
 $('firstTime').addEventListener('click', e => { e.stopPropagation(); $('tab-help').click(); });
-$('sensSel').addEventListener('change', () => { if (lastVideoFile) analyzeAudio(lastVideoFile); });
+$('sensSel').addEventListener('change', () => { if (lastVideoFile) analyzeAudio(lastVideoFile, true); });
 function showRallyControls(on){ ['skipGapsWrap','btnReplay','btnPrevRally','btnNextRally'].forEach(id => $(id).hidden = !on); }
 try { $('autoPause').checked = localStorage.getItem(LS_KEY+':autopause') !== '0'; } catch(e){}
 try { $('skipGaps').checked = localStorage.getItem(LS_KEY+':skipgaps') !== '0'; } catch(e){}
@@ -1692,7 +1714,7 @@ function renderAnnStats(){
     kpi(span != null ? span.toFixed(1) + ' 分' : '—', '標註總時長', '第一分到最後一分'),
     kpi(span != null && vid ? (span / vid).toFixed(2) + '×' : '—', '總時長／影片長度', vid ? `影片 ${vid.toFixed(0)} 分` : '未載入影片'));
 }
-function renderAll(){ renderBoard(); renderSetup(); renderStep(); drawTimeline(); renderAnnStats(); renderExportState(); if (!$('pane-analysis').hidden) renderAnalysis(); }
+function renderAll(){ renderBoard(); renderSetup(); renderStep(); drawTimeline(); renderAnnStats(); renderExportState(); if (!$('pane-data').hidden) renderLib(); if (!$('pane-analysis').hidden) renderAnalysis(); }
 
 /* ---------- analysis ---------- */
 const pct = (n, d) => d ? Math.round(100*n/d) + '%' : '—';
@@ -2244,6 +2266,7 @@ document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () =>
   ['annot','analysis','data','help'].forEach(k => $('pane-'+k).hidden = k !== t.dataset.tab);
   document.body.dataset.tab = t.dataset.tab;
   if (t.dataset.tab === 'analysis') renderAnalysis();
+  if (t.dataset.tab === 'data') renderLib();
   requestAnimationFrame(drawTimeline);   // 右欄寬度改變，播放器與時間軸跟著重排
   try { localStorage.setItem(LS_KEY+':tab', t.dataset.tab); } catch(e){}
 }));
@@ -2358,12 +2381,12 @@ $('setupCard').addEventListener('click', e => {
   save(); fillMeta(); renderAll();
 });
 $('btnNew').addEventListener('click', () => {
-  if (match.points.length && !confirm('清除目前的逐分紀錄並開新比賽？（建議先匯出 JSON）')) return;
-  const keep = {...match.meta, title:'', note:''}; match = newMatch(); match.meta = keep; isSample = false; pending = null; save(); fillMeta(); renderAll(); toast('已開新比賽');
+  if (match.points.length && !confirm('開新比賽？目前這場會留在〔比賽資料〕的本機紀錄裡，隨時可以載回。')) return;
+  newMatchKeepMeta(); if (currentFp){ match.video_fp = currentFp; match.video = videoName; } save(); fillMeta(); renderAll(); toast('已開新比賽');
 });
 
 /* ---------- import / export ---------- */
-function exportObj(){ return {...match, video:videoName || undefined, exported_at:new Date().toISOString()}; }
+function exportObj(){ return {...match, video: match.video || videoName || undefined, exported_at:new Date().toISOString()}; }
 /* 匯出備份狀態：記住上次匯出時的比賽 id 與分數，提醒還有幾分沒備份 */
 let exportMark = null;
 try { exportMark = JSON.parse(localStorage.getItem(LS_KEY+':exported') || 'null'); } catch(e){}
@@ -2463,7 +2486,82 @@ $('onsetFile').addEventListener('change', e => { const f = e.target.files[0]; if
 }).catch(err => toast('無法解析：' + err.message)); e.target.value=''; });
 
 /* ---------- persistence ---------- */
-function save(){ try { localStorage.setItem(LS_KEY, JSON.stringify({match, isSample})); } catch(e){} }
+function save(){ try { localStorage.setItem(LS_KEY, JSON.stringify({match, isSample})); } catch(e){} libUpsertSoon(); }
+/* ---------- 本機紀錄庫：所有標過的比賽都留一份，影片指紋對得上就自動帶回 ---------- */
+const LIB_KEY = LS_KEY + ':lib', LIB_MAX = 60;
+const videoFp = f => f ? `${f.name}|${f.size}` : null;   // 不含修改時間：Drive 重新同步或複製到別台電腦會改 mtime，檔名＋大小才穩
+let currentFp = null, libTimer = null;
+function libRead(){ try { return JSON.parse(localStorage.getItem(LIB_KEY) || '{}') || {}; } catch(e){ return {}; } }
+function libWrite(lib){
+  const ids = Object.keys(lib).sort((a,b) => (lib[a].saved_at||0) - (lib[b].saved_at||0));
+  while (ids.length > LIB_MAX) delete lib[ids.shift()];
+  try { localStorage.setItem(LIB_KEY, JSON.stringify(lib)); return true; }
+  catch(e){ if (ids.length > 1){ delete lib[ids.shift()]; return libWrite(lib); } return false; }   // 空間不足：砍最舊的再試
+}
+function libUpsert(){
+  if (isSample || !match.points.length) return;
+  const lib = libRead(); lib[match.id] = {match, saved_at: Date.now()}; libWrite(lib);
+  if (!$('pane-data').hidden) renderLib();
+}
+function libUpsertSoon(){ clearTimeout(libTimer); libTimer = setTimeout(libUpsert, 1200); }
+function libDelete(id){ const lib = libRead(); delete lib[id]; libWrite(lib); renderLib(); }
+function loadLibMatch(id, opts){
+  const e = libRead()[id]; if (!e) return false;
+  clearTimeout(libTimer); libUpsert();   // 先把目前這場存好
+  match = migrateMatch(e.match); isSample = false; pending = null; noteTarget = null; curIdx = -1;
+  save(); fillMeta(); renderAll(); $('libBanner').hidden = true;
+  if (!(opts && opts.silent)){
+    const m = match.meta;
+    if (match.video_fp && currentFp && match.video_fp !== currentFp) toast(`已載入 ${m.date || ''} ${m.opponent || m.title || ''}（${match.points.length} 分）。這份紀錄的影片是「${match.video || '另一支'}」，請載入該影片`);
+    else toast(`已載入 ${m.date || ''} ${m.opponent || m.title || ''}（${match.points.length} 分）`);
+  }
+  return true;
+}
+function renderLib(){
+  const box = $('libList'); if (!box) return; box.innerHTML = '';
+  const lib = libRead(); const list = Object.values(lib).sort((a,b) => (b.saved_at||0) - (a.saved_at||0));
+  if (!list.length){ box.innerHTML = '<span class="cap">還沒有存下的比賽。標第一分之後會自動出現在這裡。</span>'; return; }
+  for (const e of list){ const m = e.match, meta = m.meta || {};
+    const it = document.createElement('div'); it.className = 'it' + (m.id === match.id ? ' cur' : '');
+    const t = document.createElement('span'); t.className = 't';
+    t.innerHTML = `<strong>${esc(meta.date || '—')}</strong>　${esc(meta.opponent || meta.title || '未命名')}${meta.mode === 'doubles' ? '　<span class="cap">雙打</span>' : ''}<br><span class="v">${m.points.length} 分${m.video ? `　影片：${esc(m.video)}` : ''}${m.id === match.id ? '　（目前這場）' : ''}</span>`;
+    it.append(t);
+    if (m.id !== match.id){ const b = document.createElement('button'); b.type = 'button'; b.className = 'btn small'; b.textContent = '載入'; b.addEventListener('click', () => loadLibMatch(m.id)); it.append(b); }
+    const del = document.createElement('button'); del.type = 'button'; del.className = 'btn small'; del.textContent = '刪除'; del.addEventListener('click', () => { if (confirm(`刪除 ${meta.date || ''} ${meta.opponent || meta.title || ''} 的本機紀錄？（已匯出的 JSON 不受影響）`)) libDelete(m.id); }); it.append(del);
+    box.append(it);
+  }
+}
+/* 載入影片後：認影片指紋，決定帶回哪一場 */
+function onVideoLoaded(file){
+  const fp = videoFp(file); currentFp = fp; const banner = $('libBanner'); banner.hidden = true; banner.innerHTML = '';
+  const lib = libRead();
+  const found = Object.values(lib).map(e => e.match).filter(m => m.video_fp === fp && m.id !== match.id).sort((a,b) => ((b.ann&&b.ann.last)||0) - ((a.ann&&a.ann.last)||0))[0];
+  if (found){
+    if (!match.points.length){ loadLibMatch(found.id, {silent:true}); toast(`認出這支影片，已帶回之前的紀錄（${match.points.length} 分）`); return; }
+    banner.hidden = false;
+    banner.append(Object.assign(document.createElement('span'), {textContent: `這支影片之前標過：${found.meta.date || ''} ${found.meta.opponent || found.meta.title || ''}，${found.points.length} 分。`}));
+    const b1 = document.createElement('button'); b1.type = 'button'; b1.className = 'btn small'; b1.textContent = '載入那份紀錄'; b1.addEventListener('click', () => loadLibMatch(found.id));
+    const b2 = document.createElement('button'); b2.type = 'button'; b2.className = 'btn small'; b2.textContent = '繼續目前這場'; b2.addEventListener('click', () => { banner.hidden = true; match.video_fp = fp; match.video = file.name; save(); });
+    banner.append(b1, b2); return;
+  }
+  if (match.points.length && match.video_fp && match.video_fp !== fp){
+    banner.hidden = false;
+    banner.append(Object.assign(document.createElement('span'), {textContent: `目前這場（${match.points.length} 分）是另一支影片「${match.video || ''}」的紀錄。`}));
+    const b1 = document.createElement('button'); b1.type = 'button'; b1.className = 'btn small'; b1.textContent = '開新比賽記這支影片'; b1.addEventListener('click', () => { newMatchKeepMeta(); match.video_fp = fp; match.video = file.name; save(); renderAll(); banner.hidden = true; toast('已開新比賽'); });
+    const b2 = document.createElement('button'); b2.type = 'button'; b2.className = 'btn small'; b2.textContent = '繼續接著記'; b2.addEventListener('click', () => { banner.hidden = true; match.video_fp = fp; match.video = file.name; save(); });
+    banner.append(b1, b2); return;
+  }
+  match.video_fp = fp; match.video = file.name; save();
+}
+function newMatchKeepMeta(){ clearTimeout(libTimer); libUpsert(); const keep = {...match.meta, title:'', note:''}; match = newMatch(); match.meta = keep; isSample = false; pending = null; noteTarget = null; curIdx = -1; }
+/* 音軌分析快取：同一支影片不重算 */
+const ONSETS_KEY = LS_KEY + ':onsets';
+function onsetsCacheRead(fp){ try { const all = JSON.parse(localStorage.getItem(ONSETS_KEY) || '{}'); return all[fp] || null; } catch(e){ return null; } }
+function onsetsCacheWrite(fp, o){
+  try { const all = JSON.parse(localStorage.getItem(ONSETS_KEY) || '{}'); all[fp] = {...o, at: Date.now()};
+    const keys = Object.keys(all).sort((a,b) => (all[a].at||0) - (all[b].at||0)); while (keys.length > 20) delete all[keys.shift()];
+    localStorage.setItem(ONSETS_KEY, JSON.stringify(all)); } catch(e){}
+}
 function restore(){
   try { const raw = localStorage.getItem(LS_KEY); if (raw){ const o = JSON.parse(raw); if (o && o.match && Array.isArray(o.match.points)){ match = migrateMatch(o.match); isSample = !!o.isSample; return true; } } } catch(e){}
   return false;
@@ -2533,6 +2631,7 @@ async function listCloud(){
 /* ---------- 測試用除錯鉤子（唯讀） ---------- */
 window.ttDebug = () => ({onsets, pending, match, isSample, autoPauseIdx, prevT, loaded: P.loaded, paused: P.paused, autoPause: $('autoPause').checked, derived: derive(), replay, skipGaps: $('skipGaps').checked, askNote: $('askNote').checked});
 window.ttSetMode = setMode;
+window.ttLib = () => ({lib: libRead(), currentFp, onsetsCache: (() => { try { return Object.keys(JSON.parse(localStorage.getItem(ONSETS_KEY)||'{}')); } catch(e){ return []; } })()});
 
 /* ---------- boot ---------- */
 if (!restore()) loadSample();
