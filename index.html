@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="robots" content="noindex">
 <meta name="theme-color" content="#ECEAE5">
-<!-- built 2026-09-24 from tt-match-analyst.html -->
+<!-- built 2026-09-30 from tt-match-analyst.html -->
 <title>再來一顆｜桌球逐分復盤</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500&family=Inter:wght@400;500&family=JetBrains+Mono:wght@400;500&display=swap">
 <style>
@@ -186,6 +186,19 @@ kbd{font-family:var(--pp-font-mono);font-size:12px;border:var(--bw) solid var(--
 .log .me{color:var(--pp-accent-deep)}
 .log .star{color:var(--pp-accent)}
 .cap.warn{color:var(--pp-accent-deep)}
+.tdbox{background:var(--pp-bg-card-sub);border-radius:var(--r-ctl);padding:12px 14px;margin-top:10px;display:grid;gap:10px}
+.tdmap svg{width:100%;max-width:560px;height:auto;display:block}
+.tdmap svg text{font-size:10px;fill:var(--pp-ink-sub)}
+.tdmap circle[data-seek]{cursor:pointer}
+.tdmap circle[data-seek]:hover{stroke:var(--pp-ink);stroke-width:2}
+.filters{display:flex;flex-wrap:wrap;gap:6px}
+.filters button{font:inherit;font-size:12px;padding:4px 10px;border:var(--bw) solid var(--pp-line);border-radius:6px;background:var(--pp-bg-card);cursor:pointer;color:var(--pp-ink-sub)}
+.filters button[aria-pressed="true"]{background:var(--pp-accent-soft);color:var(--pp-accent-deep);border-color:transparent}
+.zonegrid{display:grid;grid-template-columns:auto repeat(3,minmax(0,1fr));gap:4px;font-size:12px;align-items:stretch;min-width:0}
+.zonegrid .h,.zonegrid .c{min-width:0;overflow-wrap:anywhere}
+.zonegrid .h{color:var(--pp-ink-sub);text-align:center;padding:2px}
+.zonegrid .c{background:var(--pp-bg-card-sub);border-radius:4px;padding:6px 4px;text-align:center;line-height:1.4}
+.zonegrid .c b{font-family:var(--pp-font-mono);font-weight:500}
 .banner{background:var(--pp-accent-soft);border-radius:var(--r-ctl);padding:12px 14px;margin-bottom:14px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;font-size:14px;color:var(--pp-accent-deep)}
 .banner .btn{background:#fff}
 .liblist{display:grid;gap:6px}
@@ -228,7 +241,7 @@ kbd{font-family:var(--pp-font-mono);font-size:12px;border:var(--bw) solid var(--
 .kpi .v{font-size:26px;font-weight:500;line-height:1.2}
 .kpi .l{font-size:13px;color:var(--pp-ink-sub)}
 .kpi .d{font-size:12px;color:var(--pp-ink-hint)}
-.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:20px}
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(320px,100%),1fr));gap:20px}
 svg text{font-family:var(--pp-font-mono);font-size:11px;fill:var(--pp-ink-sub)}
 .bars{display:grid;gap:8px}
 .bar{display:grid;grid-template-columns:minmax(120px,190px) 1fr 56px;gap:10px;align-items:center;font-size:13px}
@@ -532,6 +545,22 @@ textarea.io{width:100%;min-height:160px;font-family:var(--pp-font-mono);font-siz
         <p class="cap" style="margin:10px 0 0">同一組「誰發、誰接」在一局裡固定出現；哪一組我方得分率最低，通常就是對手的戰術重點。</p></div>
     </div>
 
+    <div class="card" id="tdCard" hidden>
+      <div class="row" style="justify-content:space-between">
+        <h3>落點（3D 分析）</h3>
+        <span class="cap" id="tdCardMeta"></span>
+      </div>
+      <div class="filters" id="tdFilters" style="margin-top:10px">
+        <button type="button" data-f="all" aria-pressed="true">全部</button><button type="button" data-f="me" aria-pressed="false">我得分的分</button><button type="button" data-f="op" aria-pressed="false">對手得分的分</button><button type="button" data-f="myerr" aria-pressed="false">我方失誤的分</button><button type="button" data-f="crit" aria-pressed="false">關鍵分</button>
+      </div>
+      <div class="tdmap" id="tdMap" style="margin-top:12px"></div>
+      <p class="cap" style="margin:8px 0 0">俯視球桌，左＝我方半區、右＝對手半區（依 P1 對應與換邊自動轉），下＝近鏡頭側。紅點＝我得分的分、灰點＝對手得分的分；點任一顆跳到那一分。落點是估計值，只納入信心 ≥0.3 的。</p>
+      <div class="two" style="margin-top:14px">
+        <div><h3>球落在我方半區時，我方得分率</h3><div class="zonegrid" id="tdZoneMe" style="margin-top:8px"></div><p class="cap" style="margin:6px 0 0">哪一格最低，就是對手打你最有效的區。</p></div>
+        <div><h3>球落在對手半區時，我方得分率</h3><div class="zonegrid" id="tdZoneOp" style="margin-top:8px"></div><p class="cap" style="margin:6px 0 0">哪一格最高，就是你打對手最有效的區。</p></div>
+      </div>
+    </div>
+
     <div class="card" id="hlCard">
       <div class="row" style="justify-content:space-between">
         <h3>好球集 <span class="mono cap" id="hlCount">0</span></h3>
@@ -689,9 +718,18 @@ textarea.io{width:100%;min-height:160px;font-family:var(--pp-font-mono);font-siz
         <label class="f" style="min-width:160px">音訊靈敏度<select id="sensSel"><option value="0.25">低（手機收音小）</option><option value="0.35" selected>中（一般）</option><option value="0.5">高（轉播雜音多）</option></select></label>
         <button class="btn" id="btnReanalyze" type="button" disabled>重新分析音軌</button>
         <button class="btn" id="btnOnsets" type="button">匯入 onsets.json</button>
+        <button class="btn" id="btnTd" type="button">匯入 3D 分析 match.json</button>
+        <input type="file" id="tdFile" accept="application/json,.json" hidden>
         <input type="file" id="onsetFile" accept="application/json,.json" hidden>
       </div>
       <span class="cap" id="onsetInfo">本機影片載入後自動分析；也可匯入 <span class="mono">tt_rally_onsets.py</span> 的輸出。</span>
+      <div class="tdbox" id="tdBox" hidden>
+        <div class="row" style="justify-content:space-between"><strong>3D 分析（tt3d）</strong><button class="btn small" id="btnTdClear" type="button">移除</button></div>
+        <div class="cap" id="tdInfo"></div>
+        <div class="row" style="align-items:center;gap:10px"><span style="font-size:13px">P1（近鏡頭端）是</span>
+          <div class="seg" id="segTdP1"><button type="button" data-v="me" aria-pressed="true">我</button><button type="button" data-v="op" aria-pressed="false">對手</button></div>
+          <span class="cap">換局換邊後對應會自動翻轉；回合已併入自動暫停與時間軸</span></div>
+      </div>
       <div>
         <h3 style="margin-top:8px">標註效率</h3>
         <p class="cap" style="margin:4px 0 10px">量「一場標完要多久」用的。每分從按下 A／L 到送出的秒數與動作數，只存在這場的 JSON 裡。</p>
@@ -1187,7 +1225,7 @@ function drawTimeline(){
   if (onsets){
     ctx.fillStyle = '#C3BFB6';
     for (const t of onsets.hits){ ctx.fillRect(x(t), H - 12, 1, 8); }
-    if (onsets.rallies){ ctx.fillStyle = '#9A968D'; for (const r of onsets.rallies){ ctx.fillRect(x(r.start), H - 3, Math.max(1, x(r.end) - x(r.start)), 1.5); } }
+    if (onsets.rallies){ for (const r of onsets.rallies){ ctx.fillStyle = r.src === 'video' ? '#9C3D2C' : (r.src === 'both' ? '#6E6B64' : '#9A968D'); ctx.fillRect(x(r.start), H - 3, Math.max(1, x(r.end) - x(r.start)), r.src === 'video' ? 2.5 : 1.5); } }
   }
   // --- 播放頭 ---
   ctx.fillStyle = '#232220'; ctx.fillRect(x(P.time) - 0.5, 0, 1.5, H);
@@ -1323,6 +1361,7 @@ async function analyzeAudio(file, force){
     tl.textContent = `擊球聲 ${hits.length} 筆、回合 ${rallies.length} 段；標分時自動帶入拍數，回合結束會自動暫停`;
     $('autoPauseWrap').hidden = !rallies.length; showRallyControls(!!rallies.length);
     drawTimeline(); toast(`音軌分析完成：${rallies.length} 段回合`);
+    if (match.td) mergeTdIntoOnsets();
   } catch(e){
     info.textContent = '這個檔案的音軌無法在瀏覽器內解碼（' + (e && e.message || e) + '）。可改用 tt_rally_onsets.py 產生 onsets.json 匯入。';
     tl.textContent = '影片就緒。音軌無法分析，拍數需手動輸入。';
@@ -1714,7 +1753,7 @@ function renderAnnStats(){
     kpi(span != null ? span.toFixed(1) + ' 分' : '—', '標註總時長', '第一分到最後一分'),
     kpi(span != null && vid ? (span / vid).toFixed(2) + '×' : '—', '總時長／影片長度', vid ? `影片 ${vid.toFixed(0)} 分` : '未載入影片'));
 }
-function renderAll(){ renderBoard(); renderSetup(); renderStep(); drawTimeline(); renderAnnStats(); renderExportState(); if (!$('pane-data').hidden) renderLib(); if (!$('pane-analysis').hidden) renderAnalysis(); }
+function renderAll(){ renderBoard(); renderSetup(); renderStep(); drawTimeline(); renderAnnStats(); renderExportState(); renderTdBox(); if (!$('pane-data').hidden) renderLib(); if (!$('pane-analysis').hidden) renderAnalysis(); }
 
 /* ---------- analysis ---------- */
 const pct = (n, d) => d ? Math.round(100*n/d) + '%' : '—';
@@ -1723,7 +1762,7 @@ function renderAnalysis(){
   const d = derive(); const rows = d.rows;
   $('anaTitle').textContent = (match.meta.title || '未命名比賽') + (isSample ? '　範例資料' : '');
   $('anaMeta').textContent = rows.length ? `${match.meta.date || ''}　${rows.length} 分　局數 ${d.gm}–${d.go}${d.matchOver ? (d.gm>d.go?'　勝':'　負') : ''}` : '';
-  fillReflections(); renderHighlights(rows); const dblIns = renderDoublesAnalysis(rows);
+  fillReflections(); renderHighlights(rows); renderTdCard(rows); const dblIns = renderDoublesAnalysis(rows);
   const kp = $('kpis'); kp.innerHTML = '';
   const clearIds = ['insights','gamesTable','seriesBars','trajWrap','critBars','lossBars','noteList','reasonRally','winBars','streaks','mindKpis','driftTable'];
   if (!rows.length){ kp.innerHTML = '<div class="empty">還沒有資料。到「標註」開始記錄，或在「比賽資料」匯入 JSON。</div>'; clearIds.forEach(id => $(id).innerHTML=''); return; }
@@ -1963,6 +2002,17 @@ function exportMarkdown(){
   if (notes.length){
     L.push('', '## 手寫原因與備註', '', '| 局 | 比分 | 結束方式 | 內容 | 影片時間 |', '|---|---|---|---|---|');
     notes.forEach(r => L.push(`| ${r.game} | ${r.score_me}–${r.score_op} | ${endLabel(r.end_type, r.winner, r.server)} | ${mdCell([r.reason && !fixed.includes(r.reason) ? r.reason : '', r.note].filter(Boolean).join('；'))} | ${r.t_end!=null?fmtT(r.t_end):'—'} |`));
+  }
+  if (match.td){
+    const map = tdPointBounces(rows); const pts = [];
+    map.forEach((ra, i) => { const r = rows[i]; ra.bounces.forEach(b => { if (b.conf >= TD_CONF_MIN) pts.push({b, r, side: tdSideOf(b.half, r.game), out: tdOutcome(r)}); }); });
+    L.push('', '## 落點（3D 分析）', '', `${map.size} 分對到回合，${pts.length} 個落點（信心 ≥${TD_CONF_MIN}）。落點與回合為自動估計。`, '');
+    const dzs = ['short','half_long','long'], lzs = ['near','middle','far'], dzZh = {short:'短',half_long:'半出台',long:'長'}, lzZh = {near:'近鏡頭側',middle:'中路',far:'遠鏡頭側'};
+    for (const [side, title] of [['me','球落在我方半區時，我方得分率'],['op','球落在對手半區時，我方得分率']]){
+      L.push(`### ${title}`, '', '| 深度＼橫向 | ' + lzs.map(l => lzZh[l]).join(' | ') + ' |', '|---|---|---|---|');
+      dzs.forEach(dz => L.push(`| ${dzZh[dz]} | ` + lzs.map(lz => { const g = pts.filter(p => p.side === side && p.b.dz === dz && p.b.lz === lz); const w = g.filter(p => p.out === 'me').length; return g.length ? `${Math.round(100*w/g.length)}%（${w}／${g.length}）` : '—'; }).join(' | ') + ' |'));
+      L.push('');
+    }
   }
   const R = match.reflections || {};
   const secs = [['overall','整體'],['games','局與局之間'],['points','得失分'],['mind','心態與節奏']].filter(([k]) => (R[k]||'').trim());
@@ -2441,6 +2491,7 @@ const AI_PROMPT = `以下是一場桌球比賽的逐分紀錄，由「再來一�
 - t_end：影片秒數。star：我標記的好球。ann：我標這一分花的動作數與秒數。
 - meta.best_of 局制、meta.game_to 每局分數、meta.first_server 第一局首發球方；每局首發輪替，每 2 分換發，雙方皆達 game_to−1 之後改為每分換發。
 - meta.start_games_me／start_games_op：影片開始前已打完的局數。
+- td（若有）：tt3d 影像分析的回合與落點。td.rallies[].bounces[] 的 x、y 是桌面座標（公尺，原點桌心；half 是 P1／P2 半區，td.players.P1 指出 P1 是我還是對手），depth_zone 短／半出台／長、lateral_zone 近鏡頭側／中路／遠鏡頭側，confidence 是估計信心；請把落點對到 t_end 落在該回合內的那一分再統計。
 - meta.mode：singles 單打／doubles 雙打。雙打時 meta.partner、opp1、opp2 是搭檔與兩位對手的代號；每分的 by（me＝我、pa＝搭檔）是我方最後一拍是誰打的，沒有 by 的分請依 ITTF 2.8.2 擊球順序由發球輪與拍數推估；失誤原因多一個「輪序或走位」。
 
 請根據這些資料幫我：
@@ -2484,6 +2535,111 @@ $('onsetFile').addEventListener('change', e => { const f = e.target.files[0]; if
   $('autoPauseWrap').hidden = !(o.rallies && o.rallies.length); autoPauseIdx = -1; showRallyControls(!!(o.rallies && o.rallies.length));
   drawTimeline(); toast('已載入擊球時間戳');
 }).catch(err => toast('無法解析：' + err.message)); e.target.value=''; });
+
+/* ---------- 3D 分析（tt3d match.json）匯入 ---------- */
+const TD_CONF_MIN = 0.3;
+function parseMatchJson(o){
+  if (!o || !Array.isArray(o.rallies)) throw new Error('缺 rallies');
+  const fps = +(o.source && o.source.fps) || 30;
+  const rallies = o.rallies.map(r => ({
+    id: r.id, start: +(r.core_start_s ?? r.start_s), end: +(r.core_end_s ?? r.end_s), pstart: +r.start_s, pend: +r.end_s,
+    shots: +r.shots_est || 0, hits: (r.hits || []).map(h => +h.t_s),
+    bounces: (r.bounces || []).map(b => ({t: +b.t_s, x: +b.x, y: +b.y, half: b.half, dz: b.depth_zone, lz: b.lateral_zone, dir: b.dir, conf: b.confidence == null ? 1 : +b.confidence})),
+    p1_move: r.p1_move_m, p2_move: r.p2_move_m, conf: r.confidence == null ? 1 : +r.confidence,
+  })).filter(r => isFinite(r.start) && isFinite(r.end) && r.end > r.start).sort((a,b) => a.start - b.start);
+  return {schema: o.schema_version, source: (o.source && o.source.video) || '', fps, rallies, quality: o.quality || {}, players: {P1:'me'}, imported_at: new Date().toISOString()};
+}
+/* 把 3D 回合併進 onsets：兩邊都抓到的以音訊區間為準（src both）、只有音訊的 src audio、只有影片的補進去（src video）。
+   擊球時間戳沿用音訊（影片的是換向中點、偏少）；沒有音訊時才用影片的。 */
+function mergeTdIntoOnsets(){
+  const td = match.td; if (!td) return;
+  const vid = td.rallies.map(r => ({start: r.start, end: r.end, hits: Math.max(1, r.shots), src: 'video'}));
+  if (!onsets){ onsets = {source: td.source, engine: 'tt3d', hits: td.rallies.flatMap(r => r.hits).sort((a,b) => a-b), rallies: vid}; }
+  else {
+    const base = (onsets.rallies || []).map(r => ({...r, src: r.src === 'video' ? 'video' : 'audio'})).filter(r => r.src !== 'video');
+    const out = base.map(r => ({...r}));
+    for (const v of vid){
+      const ov = out.find(a => Math.min(a.end, v.end) - Math.max(a.start, v.start) > 0.3 * Math.min(a.end - a.start, v.end - v.start));
+      if (ov) ov.src = 'both'; else out.push(v);
+    }
+    out.sort((a,b) => a.start - b.start);
+    onsets = {...onsets, rallies: out, merged_td: true};
+  }
+  autoPauseIdx = -1; $('autoPauseWrap').hidden = !(onsets.rallies && onsets.rallies.length); showRallyControls(!!(onsets.rallies && onsets.rallies.length));
+  drawTimeline();
+}
+function tdApply(o){
+  match.td = parseMatchJson(o); save(); mergeTdIntoOnsets(); renderTdBox(); renderAll();
+  toast(`已匯入 3D 分析：${match.td.rallies.length} 段回合、${match.td.rallies.reduce((s,r) => s + r.bounces.length, 0)} 個落點`);
+}
+function renderTdBox(){
+  const box = $('tdBox'); const td = match.td; box.hidden = !td; if (!td) return;
+  const nb = td.rallies.reduce((s,r) => s + r.bounces.length, 0), q = td.quality || {};
+  $('tdInfo').textContent = `${td.source || '（未知影片）'}　${td.fps} fps　${td.rallies.length} 段回合、${nb} 個落點` + (q.camera_interpolated_ratio != null ? `　相機內插 ${Math.round(q.camera_interpolated_ratio*100)}%` : '') + (q.ball_3d_frames != null ? `　3D 球位 ${q.ball_3d_frames} 幀` : '');
+  box.querySelectorAll('#segTdP1 button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === (td.players.P1 || 'me'))));
+}
+$('btnTd').addEventListener('click', () => $('tdFile').click());
+$('tdFile').addEventListener('change', e => { const f = e.target.files[0]; if (!f) return; f.text().then(t => tdApply(JSON.parse(t))).catch(err => toast('無法解析 match.json：' + err.message)); e.target.value = ''; });
+$('btnTdClear').addEventListener('click', () => { delete match.td; if (onsets && onsets.rallies){ onsets.rallies = onsets.rallies.filter(r => r.src !== 'video').map(r => { const o = {...r}; delete o.src; return o; }); if (onsets.engine === 'tt3d') onsets = null; } save(); renderTdBox(); drawTimeline(); renderAll(); toast('已移除 3D 分析'); });
+$('segTdP1').addEventListener('click', e => { const b = e.target.closest('button[data-v]'); if (!b || !match.td) return; match.td.players.P1 = b.dataset.v; save(); renderTdBox(); renderAll(); });
+/* 每一分對應哪段 3D 回合：t_end 落在 [start−0.5, end+1.5] 內；多分對到同一段時取最近的 */
+function tdPointBounces(rows){
+  const td = match.td; if (!td) return new Map();
+  const map = new Map(); const taken = new Map();
+  rows.forEach((r, i) => {
+    if (r.t_end == null) return;
+    let best = null, bd = 1e9;
+    td.rallies.forEach(ra => { if (r.t_end >= ra.start - 0.5 && r.t_end <= ra.end + 1.5){ const d = Math.abs(r.t_end - ra.end); if (d < bd){ bd = d; best = ra; } } });
+    if (!best) return;
+    const prev = taken.get(best);
+    if (prev != null && Math.abs(rows[prev].t_end - best.end) <= bd) return;
+    if (prev != null) map.delete(prev);
+    taken.set(best, i); map.set(i, best);
+  });
+  return map;
+}
+/* P1／P2 → 我／對手：依匯入時的對應，且每局換邊翻轉（ITTF 2.13.7：每局換邊）；決勝局 5 分換邊未建模 */
+function tdSideOf(half, game){
+  const p1 = (match.td && match.td.players.P1) || 'me';
+  const [sm, so] = startGames(); const firstGame = sm + so + 1;
+  const flip = ((game - firstGame) % 2) === 1;
+  const side = half === 'P1' ? p1 : other(p1);
+  return flip ? other(side) : side;
+}
+function tdOutcome(r){ return r.winner === 'me' ? 'me' : (isMyError(r, r.server) ? 'myerr' : 'op'); }
+let tdFilter = 'all';
+$('tdFilters').addEventListener('click', e => { const b = e.target.closest('button[data-f]'); if (!b) return; tdFilter = b.dataset.f; $('tdFilters').querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', String(x === b))); renderTdCard(derive().rows); });
+function renderTdCard(rows){
+  const card = $('tdCard'); card.hidden = !match.td || !rows.length; if (card.hidden) return;
+  const map = tdPointBounces(rows); const pts = [];
+  map.forEach((ra, i) => { const r = rows[i]; ra.bounces.forEach(b => { if (b.conf < TD_CONF_MIN) return; const side = tdSideOf(b.half, r.game); pts.push({b, r, i, side, out: tdOutcome(r)}); }); });
+  const shown = pts.filter(p => tdFilter === 'all' || (tdFilter === 'crit' ? p.r.critical : p.out === tdFilter || (tdFilter === 'op' && p.out === 'myerr')));
+  $('tdCardMeta').textContent = `${map.size} 分對到回合，${pts.length} 個落點（顯示 ${shown.length}）`;
+  // 俯視圖：x 水平（左我方、右對手），y 垂直（下＝近鏡頭側 y<0）。世界座標 x 是 P1 負側，要依對應轉成「我方在左」
+  const W = 560, H = 330, m = 40, L = 1.37, Wd = 0.7625, sx = (W - 2*m) / (2*L), sy = (H - 2*m) / (2*Wd);
+  const X = x => m + (x + L) * sx, Y = y => H - m - (y + Wd) * sy;
+  let sv = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="落點俯視圖">`;
+  sv += `<rect x="${X(-L)}" y="${Y(Wd)}" width="${2*L*sx}" height="${2*Wd*sy}" fill="#5B7F99" fill-opacity=".18" stroke="#6E6B64"/>`;
+  sv += `<line x1="${X(0)}" x2="${X(0)}" y1="${Y(Wd)-6}" y2="${Y(-Wd)+6}" stroke="#232220" stroke-width="2"/>`;
+  [-0.9,-0.45,0.45,0.9].forEach(x => sv += `<line x1="${X(x)}" x2="${X(x)}" y1="${Y(Wd)}" y2="${Y(-Wd)}" stroke="#D8D5CE"/>`);
+  [-0.254,0.254].forEach(y => sv += `<line x1="${X(-L)}" x2="${X(L)}" y1="${Y(y)}" y2="${Y(y)}" stroke="#D8D5CE"/>`);
+  sv += `<text x="${X(-L/2)}" y="${Y(Wd)-12}" text-anchor="middle">我方半區</text><text x="${X(L/2)}" y="${Y(Wd)-12}" text-anchor="middle">對手半區</text><text x="${X(0)}" y="${H-10}" text-anchor="middle">近鏡頭側</text>`;
+  shown.forEach(p => {
+    // 世界 x：P1 為負。我方在左 ⇔ 我方的落點 x 應為負：若這一分裡 P1≠我方，翻轉 x
+    const meIsP1 = tdSideOf('P1', p.r.game) === 'me'; const wx = meIsP1 ? p.b.x : -p.b.x;
+    const fill = p.out === 'me' ? '#9C3D2C' : '#9A968D'; const sk = pointStart(rows, p.i);
+    sv += `<circle cx="${X(wx).toFixed(1)}" cy="${Y(p.b.y).toFixed(1)}" r="6" fill="${fill}" fill-opacity=".85" stroke="#fff" stroke-width="1"${sk!=null?` data-seek="${sk}"`:''}><title>第 ${p.r.game} 局 ${p.r.score_me}–${p.r.score_op}　${p.r.winner==='me'?'我得分':'對手得分'}　${endLabel(p.r.end_type,p.r.winner,p.r.server)}　落點 ${p.side==='me'?'我方':'對手'}半區 ${({short:'短',half_long:'半出台',long:'長'})[p.b.dz]||''}／${({near:'近鏡頭側',middle:'中路',far:'遠鏡頭側'})[p.b.lz]||''}</title></circle>`;
+  });
+  sv += '</svg>'; $('tdMap').innerHTML = sv;
+  // 分區得分率：以「落在哪一半區」分兩張 3×3
+  const dzs = ['short','half_long','long'], lzs = ['near','middle','far'], dzZh = {short:'短',half_long:'半出台',long:'長'}, lzZh = {near:'近鏡頭',middle:'中路',far:'遠鏡頭'};
+  const grid = (side, el) => {
+    let h = '<div></div>' + lzs.map(l => `<div class="h">${lzZh[l]}</div>`).join('');
+    dzs.forEach(dz => { h += `<div class="h">${dzZh[dz]}</div>`; lzs.forEach(lz => { const g = pts.filter(p => p.side === side && p.b.dz === dz && p.b.lz === lz); const w = g.filter(p => p.out === 'me').length; h += `<div class="c">${g.length ? `<b>${Math.round(100*w/g.length)}%</b><br><span class="cap">${w}／${g.length}</span>` : '<span class="cap">—</span>'}</div>`; }); });
+    el.innerHTML = h;
+  };
+  grid('me', $('tdZoneMe')); grid('op', $('tdZoneOp'));
+}
 
 /* ---------- persistence ---------- */
 function save(){ try { localStorage.setItem(LS_KEY, JSON.stringify({match, isSample})); } catch(e){} libUpsertSoon(); }
@@ -2632,6 +2788,8 @@ async function listCloud(){
 window.ttDebug = () => ({onsets, pending, match, isSample, autoPauseIdx, prevT, loaded: P.loaded, paused: P.paused, autoPause: $('autoPause').checked, derived: derive(), replay, skipGaps: $('skipGaps').checked, askNote: $('askNote').checked});
 window.ttSetMode = setMode;
 window.ttLib = () => ({lib: libRead(), currentFp, onsetsCache: (() => { try { return Object.keys(JSON.parse(localStorage.getItem(ONSETS_KEY)||'{}')); } catch(e){ return []; } })()});
+window.ttTdApply = tdApply;
+window.ttTd = () => ({td: match.td || null, map: [...tdPointBounces(derive().rows).entries()].map(([i, ra]) => [i, ra.id, ra.bounces.length]), rallies: onsets && onsets.rallies});
 
 /* ---------- boot ---------- */
 if (!restore()) loadSample();
