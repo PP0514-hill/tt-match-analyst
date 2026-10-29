@@ -79,8 +79,6 @@ kbd{font-family:var(--pp-font-mono);font-size:12px;border:var(--bw) solid var(--
 /* ---- 標註 ---- */
 .stage{background:#141311;border-radius:var(--r-card);position:relative;aspect-ratio:16/9;width:100%;max-height:calc(100dvh - var(--top-h) - 230px);min-height:180px;overflow:hidden;display:flex;align-items:center;justify-content:center}
 .stage video{width:100%;height:100%;display:block;background:#141311}
-#ytHost,#ytHost iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
-#ytShield{position:absolute;inset:0;cursor:pointer}
 /* 影片左上角的即時比分 */
 .scorebug{position:absolute;top:10px;left:10px;z-index:2;pointer-events:none;background:rgba(20,19,17,.78);color:#fff;border-radius:6px;padding:6px 12px;display:flex;align-items:center;gap:10px;font-size:13px;line-height:1.2;white-space:nowrap;max-width:calc(100% - 20px);overflow:hidden}
 .scorebug>span{white-space:nowrap}
@@ -118,7 +116,6 @@ kbd{font-family:var(--pp-font-mono);font-size:12px;border:var(--bw) solid var(--
 /* 輸出好球集時蓋在影片上的進度 */
 .exporting{position:absolute;inset:0;z-index:3;background:rgba(20,19,17,.6);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;text-align:center;padding:16px}
 .exporting .big{font-size:20px;font-weight:500}
-.yturl input{background:#F3F1EC;border:0;border-radius:var(--r-ctl);padding:8px 10px;color:var(--pp-ink)}
 .kbstate{font-size:12px;color:var(--pp-ink-hint);display:flex;align-items:center;gap:6px}
 .kbstate::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--pp-state-off)}
 .kbstate.on::before{background:var(--pp-state-done)}
@@ -149,6 +146,7 @@ kbd{font-family:var(--pp-font-mono);font-size:12px;border:var(--bw) solid var(--
 .board-tools{justify-content:center;margin-top:10px;gap:8px}
 .linkbtn{background:none;border:0;padding:2px 0;font:inherit;font-size:13px;color:var(--pp-accent-deep);text-decoration:underline;text-underline-offset:3px;cursor:pointer}
 .linkrow{gap:16px;align-items:baseline}
+body[data-mode=singles] .dbl-only{display:none}
 details.adv>summary{cursor:pointer;font-size:13px;color:var(--pp-ink-sub)}
 .rules{justify-content:space-between;align-items:center;background:var(--pp-bg-card-sub);border-radius:var(--r-ctl);padding:8px 12px}
 .setup select{font:inherit;font-size:13px;width:auto}
@@ -317,8 +315,6 @@ textarea.io{width:100%;min-height:160px;font-family:var(--pp-font-mono);font-siz
   h1{font-size:17px}
   .drop{padding:12px 14px;gap:8px;overflow:auto;justify-content:flex-start;font-size:13px;line-height:1.55}
   .drop p{max-width:none}
-  .drop .yturl{gap:6px}
-  #ytHint{display:none}
 }
 @media(max-width:600px){ .tl-meta #tlInfo{display:none} }
 /* 橫向手機：高度不夠釘影片，退回整頁捲動 */
@@ -363,8 +359,6 @@ textarea.io{width:100%;min-height:160px;font-family:var(--pp-font-mono);font-siz
 <div class="player" id="player">
     <div class="stage" id="stage">
       <video id="video" playsinline preload="metadata" hidden></video>
-      <div id="ytHost" hidden></div>
-      <div id="ytShield" hidden title="點擊：播放／暫停"></div>
       <div class="scorebug" id="scoreBug" hidden aria-live="polite"></div>
       <div class="exporting" id="exportOverlay" hidden></div>
       <div class="drop" id="drop">
@@ -373,11 +367,6 @@ textarea.io{width:100%;min-height:160px;font-family:var(--pp-font-mono);font-siz
           <button class="btn" id="pickVideoBtn" type="button">選擇影片檔</button>
           <input type="file" id="videoFile" accept="video/*" hidden>
         </div>
-        <form class="row yturl" id="ytForm" style="justify-content:center;width:100%;max-width:520px">
-          <input type="text" id="ytUrl" placeholder="或貼上 YouTube 網址" autocomplete="off" spellcheck="false" style="flex:1;min-width:200px">
-          <button class="btn" type="submit">載入 YouTube</button>
-        </form>
-        <p class="hint" id="ytHint" style="color:#8E8A82">YouTube 需在自架網頁（NAS／GitHub Pages）環境下使用；本頁若被外部限制會提示。</p>
         <button class="btn small" id="firstTime" type="button" style="background:transparent;color:#CFCBC3;border-color:#5A5752">第一次用？三十秒看懂怎麼用 →</button>
       </div>
     </div>
@@ -394,7 +383,7 @@ textarea.io{width:100%;min-height:160px;font-family:var(--pp-font-mono);font-siz
       <select id="speed" class="btn small" style="width:auto" aria-label="播放速度">
         <option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="1.5">1.5×</option><option value="2">2×</option>
       </select>
-      <button class="btn small" id="btnSwap" type="button">更換影片來源</button>
+      <button class="btn small" id="btnSwap" type="button">換影片</button>
       <label class="ck" id="rallyModeWrap" hidden title="每段回合結束自動暫停問誰得分；繼續播放時跳過撿球、聊天的空檔"><input type="checkbox" id="rallyMode" checked>回合模式</label>
       <button class="btn small" id="btnReplay" type="button" hidden title="P：以 0.5 倍速重看播放頭所在的這段回合">重播回合</button>
       <button class="btn small" id="btnPrevRally" type="button" hidden title="[：上一段回合">‹ 段</button>
@@ -420,8 +409,8 @@ textarea.io{width:100%;min-height:160px;font-family:var(--pp-font-mono);font-siz
       <span><kbd>,</kbd> <kbd>.</kbd></span><span>暫停時前後一格（約 1／30 秒）</span>
       <span><kbd>[</kbd> <kbd>]</kbd></span><span>上一段／下一段回合</span>
       <span><kbd>S</kbd></span><span>切換本局首發球方（漏標修正）；雙打時在四位球員間循環，<kbd>Shift</kbd>+<kbd>S</kbd> 換首接球員</span>
-      <span><kbd>D</kbd></span><span>雙打：切換這一分我方最後一拍是我還是搭檔（預設依輪序與拍數推導）</span>
-      <span><kbd>F</kbd></span><span>雙打限定的失誤原因：輪序或走位</span>
+      <span class="dbl-only"><kbd>D</kbd></span><span class="dbl-only">雙打：切換這一分我方最後一拍是我還是搭檔（預設依輪序與拍數推導）</span>
+      <span class="dbl-only"><kbd>F</kbd></span><span class="dbl-only">雙打限定的失誤原因：輪序或走位</span>
       <span><kbd>Esc</kbd></span><span>取消目前這分的輸入</span>
     </div>
     </details>
@@ -686,7 +675,6 @@ textarea.io{width:100%;min-height:160px;font-family:var(--pp-font-mono);font-siz
       </div>
       <div class="row linkrow">
         <button class="linkbtn" id="btnCopyAI" type="button">複製給 AI 分析</button>
-        <button class="linkbtn" id="btnExportCsv" type="button">逐分 CSV</button>
         <span class="cap" id="exportState"></span>
       </div>
       <p class="cap" style="margin:0">備份檔名是「日期-對手代號」，換電腦或清瀏覽器資料後用它還原。復盤報告是 Markdown，可以貼進 Notion。「複製給 AI 分析」會連同欄位說明複製到剪貼簿，貼到 Claude 或 ChatGPT 就能問。</p>
@@ -911,19 +899,19 @@ function derive(){
   return res;
 }
 
-/* ---------- player（本機檔案 或 YouTube）---------- */
+/* ---------- player（本機檔案；v10.1 起移除 YouTube）---------- */
 const video = $('video');
 const P = {
-  kind: 'none', yt: null, ytReady: false, ytTimer: null, ytDur: 0,
-  get loaded(){ return this.kind === 'file' ? !!video.src : this.kind === 'yt' && this.ytReady; },
-  get duration(){ return this.kind === 'yt' ? (this.ytDur || 0) : (video.duration || 0); },
-  get time(){ if (!this.loaded) return 0; return this.kind === 'yt' ? (this.yt.getCurrentTime() || 0) : video.currentTime; },
-  get paused(){ if (!this.loaded) return true; return this.kind === 'yt' ? this.yt.getPlayerState() !== 1 : video.paused; },
-  seekTo(t){ if (!this.loaded) return; t = Math.max(0, Math.min(this.duration || t, t)); if (this.kind === 'yt') { this.yt.seekTo(t, true); onTime(); } else video.currentTime = t; },
+  kind: 'none',
+  get loaded(){ return this.kind === 'file' && !!video.src; },
+  get duration(){ return video.duration || 0; },
+  get time(){ return this.loaded ? video.currentTime : 0; },
+  get paused(){ return this.loaded ? video.paused : true; },
+  seekTo(t){ if (!this.loaded) return; video.currentTime = Math.max(0, Math.min(this.duration || t, t)); },
   userSeekTo(t){ stopReplay(true); this.seekTo(t); },
   seekBy(d){ this.seekTo(this.time + d); },
-  toggle(){ if (!this.loaded) return; if (this.kind === 'yt') { this.paused ? this.yt.playVideo() : this.yt.pauseVideo(); } else { video.paused ? video.play() : video.pause(); } },
-  setRate(r){ if (!this.loaded) return; if (this.kind === 'yt') this.yt.setPlaybackRate(r); else video.playbackRate = r; },
+  toggle(){ if (!this.loaded) return; video.paused ? video.play() : video.pause(); },
+  setRate(r){ if (!this.loaded) return; video.playbackRate = r; },
 };
 function onTime(){ $('tcur').textContent = fmtT(P.time); checkReplay(P.time); checkAutoPause(P.time); checkSkipGap(P.time); syncToTime(P.time); drawTimeline(); }   // 先判自動暫停再判跳空檔：同一個 timeupdate 同時越過兩個門檻時，要停下來問而不是跳走
 /* ---- 回合輔助 ---- */
@@ -1048,7 +1036,6 @@ $('btnUndo').addEventListener('click', () => undo());
 /* -- 本機檔案 -- */
 function loadVideoFile(file){
   if (!file) return;
-  destroyYT();
   if (video.src) URL.revokeObjectURL(video.src);
   P.kind = 'file'; video.hidden = false;
   video.src = URL.createObjectURL(file);
@@ -1068,55 +1055,8 @@ video.addEventListener('play', () => $('btnPlay').textContent = '暫停');
 video.addEventListener('pause', () => $('btnPlay').textContent = '播放');
 video.addEventListener('timeupdate', onTime);
 video.addEventListener('durationchange', () => $('tdur').textContent = fmtT(video.duration));
-/* -- YouTube -- */
-function ytId(url){
-  try { const u = new URL(url.trim());
-    if (u.hostname.includes('youtu.be')) return u.pathname.slice(1).split('/')[0];
-    if (u.searchParams.get('v')) return u.searchParams.get('v');
-    const m = u.pathname.match(/\/(embed|shorts|live)\/([\w-]{6,})/); if (m) return m[2];
-  } catch(e){ if (/^[\w-]{11}$/.test(url.trim())) return url.trim(); }
-  return null;
-}
-function destroyYT(){ if (P.ytTimer) clearInterval(P.ytTimer); P.ytTimer = null; if (P.yt && P.yt.destroy) { try { P.yt.destroy(); } catch(e){} } P.yt = null; P.ytReady = false; P.ytDur = 0; $('ytHost').innerHTML = ''; $('ytHost').hidden = true; $('ytShield').hidden = true; }
-let ytApiPromise = null;
-function loadYTApi(){
-  if (window.YT && window.YT.Player) return Promise.resolve();
-  if (ytApiPromise) return ytApiPromise;
-  ytApiPromise = new Promise((res, rej) => {
-    const timer = setTimeout(() => rej(new Error('blocked')), 8000);
-    window.onYouTubeIframeAPIReady = () => { clearTimeout(timer); res(); };
-    const sc = document.createElement('script'); sc.src = 'https://www.youtube.com/iframe_api';
-    sc.onerror = () => { clearTimeout(timer); rej(new Error('blocked')); };
-    document.head.appendChild(sc);
-  });
-  return ytApiPromise;
-}
-async function loadYouTube(url){
-  const id = ytId(url);
-  if (!id){ toast('看不懂這個網址，請貼完整的 YouTube 影片連結'); return; }
-  $('ytHint').textContent = '正在連線 YouTube……';
-  try { await loadYTApi(); }
-  catch(e){ ytApiPromise = null; $('ytHint').textContent = '這個環境擋住了 YouTube（外部連線受限）。請把本頁 HTML 放到 NAS Web Station 或 GitHub Pages 開啟，YouTube 才能用；或先下載影片改用檔案。'; toast('此環境無法載入 YouTube'); return; }
-  destroyYT();
-  video.pause(); video.hidden = true; if (video.src){ URL.revokeObjectURL(video.src); video.removeAttribute('src'); video.load(); }
-  P.kind = 'yt'; videoName = 'youtube:' + id;
-  $('ytHost').hidden = false; $('ytHost').innerHTML = '<div id="ytPlayer"></div>';
-  const pv = {controls: 0, disablekb: 1, rel: 0, modestbranding: 1, playsinline: 1};
-  if (location.origin && location.origin.startsWith('http')) pv.origin = location.origin;
-  P.yt = new YT.Player('ytPlayer', {
-    videoId: id, playerVars: pv,
-    events: {
-      onReady: ev => { P.ytReady = true; P.ytDur = ev.target.getDuration(); $('ytShield').hidden = false; afterLoad('YouTube ' + id);
-        P.ytTimer = setInterval(() => { if (P.ytReady){ if (!P.ytDur) P.ytDur = P.yt.getDuration(); onTime(); } }, 250); },
-      onStateChange: ev => { $('btnPlay').textContent = ev.data === 1 ? '暫停' : '播放'; },
-      onError: () => { toast('YouTube 拒絕播放這支影片（可能不允許嵌入）'); }
-    }
-  });
-}
-$('ytForm').addEventListener('submit', e => { e.preventDefault(); loadYouTube($('ytUrl').value); $('ytUrl').blur(); });
-$('ytShield').addEventListener('click', () => { P.toggle(); window.focus(); });
 video.addEventListener('click', () => { if (P.kind === 'file' && P.loaded) P.toggle(); });   // 手機沒有 Space：點影片播放／暫停
-$('btnSrv').addEventListener('click', () => toggleServer());   // 蓋在 iframe 上：點擊播放／暫停，鍵盤焦點留在本頁
+$('btnSrv').addEventListener('click', () => toggleServer());
 /* -- 共用控制 -- */
 function togglePlay(){ if (replay) stopReplay(true); P.toggle(); }
 function seek(d){ stopReplay(true); P.seekBy(d); }
@@ -1726,7 +1666,7 @@ function renderAnnStats(){
     kpi(span != null ? span.toFixed(1) + ' 分' : '—', '標註總時長', '第一分到最後一分'),
     kpi(span != null && vid ? (span / vid).toFixed(2) + '×' : '—', '總時長／影片長度', vid ? `影片 ${vid.toFixed(0)} 分` : '未載入影片'));
 }
-function renderAll(){ renderBoard(); renderSetup(); renderStep(); drawTimeline(); renderAnnStats(); renderExportState(); renderTdBox(); if (!$('pane-data').hidden) renderLib(); if (!$('pane-analysis').hidden) renderAnalysis(); }
+function renderAll(){ document.body.dataset.mode = isDoubles() ? 'doubles' : 'singles'; renderBoard(); renderSetup(); renderStep(); drawTimeline(); renderAnnStats(); renderExportState(); renderTdBox(); if (!$('pane-data').hidden) renderLib(); if (!$('pane-analysis').hidden) renderAnalysis(); }
 
 /* ---------- analysis ---------- */
 const pct = (n, d) => d ? Math.round(100*n/d) + '%' : '—';
@@ -2113,7 +2053,6 @@ function renderHighlights(rows){
   const can = P.kind === 'file' && P.loaded && stars.some(r => r.t_end != null) && !exporting;
   $('btnHlVideo').disabled = !can || !('captureStream' in HTMLVideoElement.prototype || 'mozCaptureStream' in HTMLVideoElement.prototype) || typeof MediaRecorder === 'undefined';
   $('btnHlScript').disabled = !stars.some(r => r.t_end != null);
-  if (!can && stars.length && P.kind !== 'file') $('hlStatus').textContent = 'YouTube 來源無法在瀏覽器裡剪輯；請下載 ffmpeg 腳本，搭配下載下來的影片檔在電腦上跑。';
 }
 const waitEvent = (el, ev, ms) => new Promise(res => { let done = false; const h = () => { if (!done){ done = true; res(true); } }; el.addEventListener(ev, h, {once:true}); setTimeout(() => { if (!done){ done = true; el.removeEventListener(ev, h); res(false); } }, ms); });
 async function exportHighlightVideo(){
@@ -2468,12 +2407,6 @@ async function offerDownload(name, data, mime){
   return false;
 }
 $('btnExport').addEventListener('click', async () => { if (await offerDownload(fileStem() + '.json', JSON.stringify(exportObj(), null, 2), 'application/json')) markExported(); });
-$('btnExportCsv').addEventListener('click', () => {
-  const d = derive();
-  const head = ['idx','game','score_me','score_op','server','winner','rally','end_type','end_label','reason','note','critical','star','t_end','server_p','receiver_p','by'];
-  const lines = [head.join(',')].concat(d.rows.map((r,i) => [i+1,r.game,r.score_me,r.score_op,r.server,r.winner,r.rally??'',r.end_type,endLabel(r.end_type,r.winner,r.server),r.reason??'',r.note??'',r.critical?1:0,r.star?1:0,r.t_end??'',r.serverP??'',r.receiverP??'',r.by??''].map(v => /[",\n]/.test(String(v)) ? `"${String(v).replace(/"/g,'""')}"` : v).join(',')));
-  offerDownload(fileStem() + '-points.csv', '﻿' + lines.join('\n'), 'text/csv');
-});
 const AI_PROMPT = `以下是一場桌球比賽的逐分紀錄，由「再來一顆｜桌球逐分復盤」匯出。
 
 欄位說明：
