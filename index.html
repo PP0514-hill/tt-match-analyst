@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="robots" content="noindex">
 <meta name="theme-color" content="#ECEAE5">
-<!-- built 2026-09-30 from tt-match-analyst.html -->
+<!-- built 2026-10-29 from tt-match-analyst.html -->
 <title>再來一顆｜桌球逐分復盤</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500&family=Inter:wght@400;500&family=JetBrains+Mono:wght@400;500&display=swap">
 <style>
@@ -99,11 +99,11 @@ kbd{font-family:var(--pp-font-mono);font-size:12px;border:var(--bw) solid var(--
 .help .three .c b{font-weight:500;font-size:14px}
 .help .three .c span{font-size:13px;color:var(--pp-ink-sub);line-height:1.6}
 .help .steps{display:grid;gap:0;counter-reset:st}
-.help .step{display:grid;grid-template-columns:36px minmax(0,1fr);gap:14px;padding:12px 0;border-top:var(--bw) solid var(--pp-line)}
-.help .step:first-child{border-top:0}
-.help .step .no{width:30px;height:30px;border-radius:50%;background:var(--pp-accent);color:#fff;display:flex;align-items:center;justify-content:center;font-family:var(--pp-font-mono);font-weight:500}
-.help .step b{font-weight:500;display:block;margin-bottom:2px}
-.help .step p{margin:0;font-size:13px;color:var(--pp-ink-sub);line-height:1.6}
+.help .hstep{display:grid;grid-template-columns:36px minmax(0,1fr);gap:14px;padding:12px 0;border-top:var(--bw) solid var(--pp-line)}
+.help .hstep:first-child{border-top:0}
+.help .hstep .no{width:30px;height:30px;border-radius:50%;background:var(--pp-accent);color:#fff;display:flex;align-items:center;justify-content:center;font-family:var(--pp-font-mono);font-weight:500}
+.help .hstep b{font-weight:500;display:block;margin-bottom:2px}
+.help .hstep p{margin:0;font-size:13px;color:var(--pp-ink-sub);line-height:1.6}
 .help svg{width:100%;height:auto;display:block}
 .help svg text{font-family:var(--pp-font-zh),var(--pp-font-en);font-size:11px;fill:var(--pp-ink-sub)}
 .help svg text.k{font-family:var(--pp-font-mono);fill:var(--pp-ink)}
@@ -143,9 +143,15 @@ kbd{font-family:var(--pp-font-mono);font-size:12px;border:var(--bw) solid var(--
 .gamehist{display:flex;gap:6px;justify-content:center;margin-top:10px;flex-wrap:wrap}
 .gamehist span{font-size:12px;padding:1px 8px;border:var(--bw) solid var(--pp-line);border-radius:6px;color:var(--pp-ink-sub)}
 
-.guide{margin-top:20px;padding:12px 14px;border-radius:var(--r-ctl);background:var(--pp-accent-soft);color:var(--pp-accent-deep);font-size:13px;line-height:1.7}
-.guide strong{font-weight:500;display:block;margin-bottom:2px}
-.guide kbd{background:#fff;border-color:transparent}
+.helpcard{background:var(--pp-bg-card-sub);border-radius:var(--r-ctl);padding:14px 16px;margin-bottom:16px;gap:12px}
+.helpcard .lead{font-size:14px}
+.helpcard .keys{margin:0}
+.board-tools{justify-content:center;margin-top:10px;gap:8px}
+.linkbtn{background:none;border:0;padding:2px 0;font:inherit;font-size:13px;color:var(--pp-accent-deep);text-decoration:underline;text-underline-offset:3px;cursor:pointer}
+.linkrow{gap:16px;align-items:baseline}
+details.adv>summary{cursor:pointer;font-size:13px;color:var(--pp-ink-sub)}
+.rules{justify-content:space-between;align-items:center;background:var(--pp-bg-card-sub);border-radius:var(--r-ctl);padding:8px 12px}
+.setup select{font:inherit;font-size:13px;width:auto}
 .step{margin-top:20px;border-top:var(--bw) solid var(--pp-line);padding-top:16px}
 .step h3{margin-bottom:8px}
 .step .q{font-size:16px;font-weight:500;margin-bottom:10px;min-height:1.6em}
@@ -348,6 +354,7 @@ textarea.io{width:100%;min-height:160px;font-family:var(--pp-font-mono);font-siz
 
 <header class="top"><div class="top-in">
   <h1>再來一顆<span class="sub">桌球逐分復盤</span> <span id="matchTitleTop">未命名比賽</span></h1>
+  <button class="btn small" id="btnHelp" type="button" style="margin-left:auto">怎麼用</button>
 </div></header>
 
 <main class="work">
@@ -388,8 +395,7 @@ textarea.io{width:100%;min-height:160px;font-family:var(--pp-font-mono);font-siz
         <option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="1.5">1.5×</option><option value="2">2×</option>
       </select>
       <button class="btn small" id="btnSwap" type="button">更換影片來源</button>
-      <label class="ck" id="autoPauseWrap" hidden title="依擊球聲切出的回合，結束後自動暫停並問誰得分"><input type="checkbox" id="autoPause" checked>回合結束自動暫停</label>
-      <label class="ck" id="skipGapsWrap" hidden title="回合結束後繼續播放時，直接跳到下一段回合開始前一秒，撿球聊天的空檔不看"><input type="checkbox" id="skipGaps" checked>跳過回合間空檔</label>
+      <label class="ck" id="rallyModeWrap" hidden title="每段回合結束自動暫停問誰得分；繼續播放時跳過撿球、聊天的空檔"><input type="checkbox" id="rallyMode" checked>回合模式</label>
       <button class="btn small" id="btnReplay" type="button" hidden title="P：以 0.5 倍速重看播放頭所在的這段回合">重播回合</button>
       <button class="btn small" id="btnPrevRally" type="button" hidden title="[：上一段回合">‹ 段</button>
       <button class="btn small" id="btnNextRally" type="button" hidden title="]：下一段回合">段 ›</button>
@@ -405,10 +411,10 @@ textarea.io{width:100%;min-height:160px;font-family:var(--pp-font-mono);font-siz
       <span><kbd>Q</kbd> <kbd>W</kbd> <kbd>E</kbd></span><span>結束方式：主動得分／受迫失誤／非受迫失誤</span>
       <span><kbd>R</kbd> <kbd>T</kbd></span><span>發球得分（含對方吃發球）／發球失誤；依當分發球方自動判定可用哪一個</span>
       <span><kbd>Z</kbd> <kbd>X</kbd> <kbd>C</kbd> <kbd>V</kbd> <kbd>B</kbd></span><span>我方失誤原因：步法沒到／旋轉判斷錯／選擇太冒進／純執行失誤／其他（手寫）</span>
-      <span><kbd>N</kbd></span><span>編輯播放頭所在那一分的原因與備註（回頭看也能改）；逐分紀錄的「原因／備註」格直接點也可以。預設我方得分後不會跳備註欄，要問的話到〔比賽資料〕開啟</span>
+      <span><kbd>N</kbd></span><span>編輯播放頭所在那一分的原因與備註（回頭看也能改）；逐分紀錄的「原因／備註」格直接點也可以。預設我方得分後不會跳備註欄，要問的話到〔比賽資料〕的進階設定開啟</span>
       <span><kbd>H</kbd></span><span>標記好球：輸入中按下標記這一分；沒在輸入時標記播放頭所在的那一分（回頭看也能標），逐分紀錄每列前的 ★ 也可點；好球會進時間軸與分析頁的好球集，可一鍵剪成影片</span>
       <span><kbd>1</kbd>–<kbd>9</kbd> <kbd>0</kbd></span><span>拍數（0 ＝ 10 拍以上）；有擊球時間戳時自動帶入</span>
-      <span><kbd>Space</kbd></span><span>播放／暫停；開著「跳過回合間空檔」時，回合結束後繼續會直接跳到下一段</span>
+      <span><kbd>Space</kbd></span><span>播放／暫停；開著「回合模式」時，回合結束後繼續會直接跳到下一段</span>
       <span><kbd>←</kbd> <kbd>→</kbd></span><span>回跳／前進 3 秒（Shift：15 秒）</span>
       <span><kbd>P</kbd></span><span>以 0.5 倍速重播這段回合，看完自動停</span>
       <span><kbd>,</kbd> <kbd>.</kbd></span><span>暫停時前後一格（約 1／30 秒）</span>
@@ -427,28 +433,47 @@ textarea.io{width:100%;min-height:160px;font-family:var(--pp-font-mono);font-siz
     <button class="tab" role="tab" aria-selected="true" data-tab="annot" id="tab-annot">標註</button>
     <button class="tab" role="tab" aria-selected="false" data-tab="analysis" id="tab-analysis">分析</button>
     <button class="tab" role="tab" aria-selected="false" data-tab="data" id="tab-data">比賽資料</button>
-    <button class="tab" role="tab" aria-selected="false" data-tab="help" id="tab-help">怎麼用</button>
   </nav>
   <div class="panel-body">
 
 <!-- ================= 標註 ================= -->
 <section id="pane-annot">
   <div class="card">
+    <div class="help helpcard" id="helpCard" hidden>
+      <div class="row" style="justify-content:space-between;align-items:baseline"><h3>怎麼用</h3><button class="btn small" id="helpClose" type="button">知道了</button></div>
+      <p class="lead">看自己的比賽影片，每一分按兩個鍵，其他交給頁面。影片和紀錄都留在你的電腦。</p>
+      <div class="steps">
+        <div class="hstep"><div class="no">1</div><div><b>拖入影片，選誰先發球</b><p>音軌會自動切出每段回合。影片從中途錄的話，把開始前的大局比分填上。</p></div></div>
+        <div class="hstep"><div class="no">2</div><div><b>邊看邊按</b><p>回合結束畫面自動停。按 <kbd>A</kbd> 我得分或 <kbd>L</kbd> 對手得分，再按 <kbd>Q</kbd> 主動得分、<kbd>W</kbd> 受迫失誤或 <kbd>E</kbd> 非受迫失誤；自己失誤再選一個原因。有建議時按 <kbd>Enter</kbd>。停錯地方按 <kbd>Space</kbd> 略過。</p></div></div>
+        <div class="hstep"><div class="no">3</div><div><b>看分析、剪好球</b><p>〔分析〕看重點與每局走勢，點任何一分影片跳過去。看到好球按 <kbd>H</kbd>，想補備註按 <kbd>N</kbd>。好球集一鍵輸出。</p></div></div>
+      </div>
+      <div class="keys">
+        <span><kbd>A</kbd> <kbd>L</kbd></span><span>我得分／對手得分</span>
+        <span><kbd>Q</kbd> <kbd>W</kbd> <kbd>E</kbd></span><span>主動得分／受迫失誤／非受迫失誤</span>
+        <span><kbd>H</kbd></span><span>標記好球</span>
+        <span><kbd>N</kbd></span><span>補原因與備註</span>
+        <span><kbd>Space</kbd></span><span>播放／暫停</span>
+        <span><kbd>P</kbd></span><span>慢速重播這段回合</span>
+        <span><kbd>Backspace</kbd></span><span>復原上一分</span>
+      </div>
+      <p class="cap" style="margin:0">完整鍵位在影片下方「快捷鍵一覽」。手機沒鍵盤：每個鍵都有對應按鈕。拍數不準或回合切得亂：〔比賽資料〕的進階設定調音訊靈敏度。</p>
+    </div>
     <div class="banner" id="libBanner" hidden role="status"></div>
     <div class="setup" id="setupCard" hidden>
-      <div class="row" style="justify-content:space-between;align-items:baseline"><h3>開始前確認</h3><span class="cap">記下第一分後這張卡會收起</span></div>
+      <div class="row" style="justify-content:space-between;align-items:baseline"><h3 id="setupTitle">開始前確認</h3><span class="cap" id="setupHint">記下第一分後這張卡會收起</span><button class="btn small" id="btnSetupDone" type="button" hidden>完成</button></div>
       <div class="srow"><span>單打或雙打</span>
         <div class="seg" id="segMode" role="group" aria-label="單打或雙打"><button type="button" data-v="singles" aria-pressed="true">單打</button><button type="button" data-v="doubles" aria-pressed="false">雙打</button></div></div>
+      <div class="srow"><span>局制</span>
+        <div class="row" style="gap:6px;justify-content:flex-end">
+          <select id="mBestOf" aria-label="局制"><option value="1">單局</option><option value="3">三戰兩勝</option><option value="5" selected>五戰三勝</option><option value="7">七戰四勝</option><option value="0">練習（不限局數）</option></select>
+          <select id="mGameTo" aria-label="每局分數"><option value="11" selected>每局 11 分</option><option value="21">每局 21 分</option></select>
+        </div></div>
       <div class="srow" id="dblNames" hidden><span>代號</span>
         <div class="row" style="gap:6px;flex:1;justify-content:flex-end">
           <input type="text" id="dPartner" placeholder="搭檔" style="width:88px" autocomplete="off">
           <input type="text" id="dOpp1" placeholder="對手1" style="width:88px" autocomplete="off">
           <input type="text" id="dOpp2" placeholder="對手2" style="width:88px" autocomplete="off">
         </div></div>
-      <div class="srow"><span>這一局誰先發球</span>
-        <div class="seg" id="segServer" role="group" aria-label="這一局首發球"><button type="button" data-v="me" aria-pressed="true">我</button><button type="button" data-v="op" aria-pressed="false">對手</button></div></div>
-      <div class="srow" id="dblRecvRow" hidden><span>對面誰先接發球</span>
-        <div class="seg" id="segReceiver" role="group" aria-label="這一局首接球員"></div></div>
       <div class="srow"><span>影片從<strong>第 <span class="mono" id="setupGameNo">1</span> 局</strong>開始</span>
         <div class="stepper" aria-label="開始前的大局比分">
           <span class="cap">開始前大局</span>
@@ -456,7 +481,11 @@ textarea.io{width:100%;min-height:160px;font-family:var(--pp-font-mono);font-siz
           <span class="cap">：</span>
           <span>對手</span><button type="button" data-k="start_games_op" data-d="-1" aria-label="對手局數減一">−</button><span class="n" id="sgOp">0</span><button type="button" data-k="start_games_op" data-d="1" aria-label="對手局數加一">+</button>
         </div></div>
-      <p class="cap" style="margin:0">影片從中途開始錄時，先把已經打完的局數填上，局數、發球輪替、大局分析才會對。局制與每局分數在〔比賽資料〕。</p>
+      <div class="srow"><span>那一局誰先發球</span>
+        <div class="seg" id="segServer" role="group" aria-label="這一局首發球"><button type="button" data-v="me" aria-pressed="true">我</button><button type="button" data-v="op" aria-pressed="false">對手</button></div></div>
+      <div class="srow" id="dblRecvRow" hidden><span>對面誰先接發球</span>
+        <div class="seg" id="segReceiver" role="group" aria-label="這一局首接球員"></div></div>
+      <p class="cap" style="margin:0">影片從中途開始錄時，先把已經打完的局數填上，局數、發球輪替、大局分析才會對。比賽中途發現發球方記錯，按 <kbd>S</kbd> 只改這一局。</p>
     </div>
     <div class="board">
       <div>
@@ -472,15 +501,7 @@ textarea.io{width:100%;min-height:160px;font-family:var(--pp-font-mono);font-siz
       </div>
     </div>
     <div class="gamehist" id="gameHist"></div>
-    <div class="row touch-only" style="justify-content:center;margin-top:10px"><button class="btn small" id="btnSrv" type="button">切換本局首發球方</button></div>
-
-    <div class="guide" id="guide" hidden>
-      <strong>影片已載入，等你開始記分。</strong>
-      這一版不會自動分析畫面：畫面判讀交給你，頁面負責計分、發球輪替與統計。
-      按 <kbd>Space</kbd> 播放，每一分結束時按 <kbd>A</kbd>（我得分）或 <kbd>L</kbd>（對手得分），接著照右側提示按一兩個鍵。
-      本機影片載入後會自動分析音軌，切出回合、帶入拍數，回合結束會自動暫停問你誰得分。
-      <button class="btn small" id="guideClose" type="button" style="margin-top:8px">知道了</button>
-    </div>
+    <div class="row board-tools"><button class="btn small" id="btnSetup" type="button">比賽設定</button><button class="btn small touch-only" id="btnSrv" type="button">切換本局首發球方</button></div>
 
     <div class="step">
       <div class="row" style="justify-content:space-between;align-items:baseline"><h3 id="stepLabel">這一分</h3><span class="kbstate" id="kbState">鍵盤</span></div>
@@ -639,90 +660,41 @@ textarea.io{width:100%;min-height:160px;font-family:var(--pp-font-mono);font-siz
   </div>
 </section>
 
-<!-- ================= 怎麼用 ================= -->
-<section id="pane-help" hidden>
-  <div class="help">
-    <div class="card">
-      <p class="lead">看自己的比賽影片，每一分按兩個鍵，其他交給頁面。影片和紀錄都留在你的電腦。</p>
-      <div class="steps" style="margin-top:12px">
-        <div class="step"><div class="no">1</div><div><b>拖入影片，選誰先發球</b><p>音軌會自動切出每段回合。影片從中途錄的話，把開始前的大局比分填上。</p></div></div>
-        <div class="step"><div class="no">2</div><div><b>邊看邊按</b><p>回合結束畫面自動停。按 <kbd>A</kbd> 我得分或 <kbd>L</kbd> 對手得分，再按 <kbd>Q</kbd> 主動得分、<kbd>W</kbd> 受迫失誤或 <kbd>E</kbd> 非受迫失誤；自己失誤再選一個原因。有建議時按 <kbd>Enter</kbd>。停錯地方按 <kbd>Space</kbd> 略過。</p></div></div>
-        <div class="step"><div class="no">3</div><div><b>看分析、剪好球</b><p>右欄〔分析〕看重點與每局走勢，點任何一分影片跳過去。看到好球按 <kbd>H</kbd>，想補備註按 <kbd>N</kbd>。好球集一鍵輸出。</p></div></div>
-      </div>
-    </div>
-    <div class="card">
-      <div class="row" style="justify-content:space-between;align-items:baseline"><h3>最常用的鍵</h3><span class="cap">完整鍵位在影片下方「快捷鍵一覽」</span></div>
-      <div class="keys" style="margin-top:12px;grid-template-columns:auto 1fr auto 1fr;column-gap:14px">
-        <span><kbd>A</kbd> <kbd>L</kbd></span><span>我得分／對手得分</span>
-        <span><kbd>Q</kbd> <kbd>W</kbd> <kbd>E</kbd></span><span>主動得分／受迫失誤／非受迫失誤</span>
-        <span><kbd>H</kbd></span><span>標記好球</span>
-        <span><kbd>N</kbd></span><span>補原因與備註</span>
-        <span><kbd>Space</kbd></span><span>播放／暫停；回合間空檔會自動跳過</span>
-        <span><kbd>P</kbd></span><span>慢速重播這段回合</span>
-        <span><kbd>Backspace</kbd></span><span>復原上一分</span>
-      </div>
-      <p class="cap" style="margin:14px 0 0">拍數不準或回合切得亂：〔比賽資料〕調音訊靈敏度再分析。手機沒鍵盤：每個鍵都有對應按鈕。</p>
-    </div>
-  </div>
-</section>
-
 <!-- ================= 比賽資料 ================= -->
 <section id="pane-data" hidden>
   <div class="grid two">
     <div class="card grid" style="gap:12px">
-      <h2>比賽設定</h2>
+      <h2>這場比賽</h2>
       <label class="f">比賽名稱<input type="text" id="mTitle" placeholder="例：2026-09 週末練習賽"></label>
       <div class="row" style="align-items:stretch">
         <label class="f" style="flex:1">日期<input type="date" id="mDate"></label>
         <label class="f" style="flex:1">對手代號<input type="text" id="mOpp" placeholder="例：右手橫板 B"></label>
       </div>
-      <div class="row" style="align-items:stretch">
-        <label class="f" style="flex:1">單打或雙打<select id="mMode"><option value="singles">單打</option><option value="doubles">雙打</option></select></label>
-        <label class="f" style="flex:1">搭檔代號<input type="text" id="mPartner" placeholder="雙打用"></label>
-        <label class="f" style="flex:1">對手1<input type="text" id="mOpp1" placeholder="雙打用"></label>
-        <label class="f" style="flex:1">對手2<input type="text" id="mOpp2" placeholder="雙打用"></label>
-      </div>
-      <div class="row" style="align-items:stretch">
-        <label class="f" style="flex:1">局制<select id="mBestOf"><option value="1">單局</option><option value="3">三戰兩勝</option><option value="5" selected>五戰三勝</option><option value="7">七戰四勝</option><option value="0">練習（不限局數）</option></select></label>
-        <label class="f" style="flex:1">每局分數<select id="mGameTo"><option value="11" selected>11 分</option><option value="21">21 分</option></select></label>
-        <label class="f" style="flex:1">第一局首發球<select id="mFirstServer"><option value="me">我</option><option value="op">對手</option></select></label>
-      </div>
-      <div class="row" style="align-items:stretch">
-        <label class="f" style="flex:1">開始前大局：我<input type="number" id="mStartMe" min="0" max="6" inputmode="numeric"></label>
-        <label class="f" style="flex:1">開始前大局：對手<input type="number" id="mStartOp" min="0" max="6" inputmode="numeric"></label>
-        <span class="cap" style="flex:2;align-self:end">影片從中途開始錄時填已打完的局數；〔標註〕的開始前確認卡也能改。</span>
-      </div>
       <label class="f">備註<input type="text" id="mNote" placeholder="場地、器材、狀態……"></label>
-      <label class="ck" style="display:inline-flex;align-items:center;gap:8px;font-size:13px;color:var(--pp-ink-sub);cursor:pointer"><input type="checkbox" id="askNote">我方得分後自動跳出備註欄（關閉時每顆自己贏的球少按一鍵，想寫再按 N）</label>
+      <div class="row rules"><span class="cap" id="rulesLine"></span><button class="btn small" id="btnRules" type="button">改規則與發球</button></div>
       <div class="row">
-        <button class="btn accent" id="btnNew" type="button">開新比賽（目前這場留在本機紀錄）</button>
-        <span class="cap">變更設定會即時重算發球方與局數。</span>
+        <button class="btn" id="btnNew" type="button">開新比賽</button>
+        <span class="cap">目前這場會留在下方的本機紀錄。</span>
       </div>
     </div>
 
     <div class="card grid" style="gap:12px">
-      <h2>匯入／匯出</h2>
+      <h2>匯出與匯入</h2>
       <div class="row">
-        <button class="btn" id="btnExport" type="button">匯出比賽 JSON</button>
-        <button class="btn" id="btnExportCsv" type="button">匯出逐分 CSV</button>
-        <button class="btn" id="btnExportMd" type="button">匯出復盤報告 Markdown</button>
-        <button class="btn" id="btnImport" type="button">匯入比賽 JSON</button>
-        <input type="file" id="importFile" accept="application/json,.json" hidden>
+        <button class="btn accent" id="btnExport" type="button">匯出備份 JSON</button>
+        <button class="btn" id="btnExportMd" type="button">匯出復盤報告</button>
       </div>
-      <div class="row">
-        <button class="btn accent" id="btnCopyAI" type="button">複製給 AI 分析</button>
+      <div class="row linkrow">
+        <button class="linkbtn" id="btnCopyAI" type="button">複製給 AI 分析</button>
+        <button class="linkbtn" id="btnExportCsv" type="button">逐分 CSV</button>
         <span class="cap" id="exportState"></span>
       </div>
-      <p class="cap" style="margin:0">檔名為「日期-對手代號」。「複製給 AI 分析」會把這場的資料連同欄位說明複製到剪貼簿，貼到 Claude 或 ChatGPT 就能問問題。</p>
-      <div class="row">
-        <label class="f" style="min-width:160px">音訊靈敏度<select id="sensSel"><option value="0.25">低（手機收音小）</option><option value="0.35" selected>中（一般）</option><option value="0.5">高（轉播雜音多）</option></select></label>
-        <button class="btn" id="btnReanalyze" type="button" disabled>重新分析音軌</button>
-        <button class="btn" id="btnOnsets" type="button">匯入 onsets.json</button>
-        <button class="btn" id="btnTd" type="button">匯入 3D 分析 match.json</button>
-        <input type="file" id="tdFile" accept="application/json,.json" hidden>
-        <input type="file" id="onsetFile" accept="application/json,.json" hidden>
+      <p class="cap" style="margin:0">備份檔名是「日期-對手代號」，換電腦或清瀏覽器資料後用它還原。復盤報告是 Markdown，可以貼進 Notion。「複製給 AI 分析」會連同欄位說明複製到剪貼簿，貼到 Claude 或 ChatGPT 就能問。</p>
+      <div class="row" style="margin-top:6px">
+        <button class="btn" id="btnImportAny" type="button">匯入檔案</button>
+        <input type="file" id="anyFile" accept="application/json,.json" multiple hidden>
       </div>
-      <span class="cap" id="onsetInfo">本機影片載入後自動分析；也可匯入 <span class="mono">tt_rally_onsets.py</span> 的輸出。</span>
+      <p class="cap" style="margin:0">選一個檔：比賽備份、擊球時間戳 onsets.json、3D 分析 match.json 都會自動認出來。一次選兩場以上的備份：看多場趨勢，不影響目前這場。</p>
       <div class="tdbox" id="tdBox" hidden>
         <div class="row" style="justify-content:space-between"><strong>3D 分析（tt3d）</strong><button class="btn small" id="btnTdClear" type="button">移除</button></div>
         <div class="cap" id="tdInfo"></div>
@@ -730,48 +702,41 @@ textarea.io{width:100%;min-height:160px;font-family:var(--pp-font-mono);font-siz
           <div class="seg" id="segTdP1"><button type="button" data-v="me" aria-pressed="true">我</button><button type="button" data-v="op" aria-pressed="false">對手</button></div>
           <span class="cap">換局換邊後對應會自動翻轉；回合已併入自動暫停與時間軸</span></div>
       </div>
-      <div>
-        <h3 style="margin-top:8px">標註效率</h3>
-        <p class="cap" style="margin:4px 0 10px">量「一場標完要多久」用的。每分從按下 A／L 到送出的秒數與動作數，只存在這場的 JSON 裡。</p>
-        <div class="annstats" id="annStats"></div>
-      </div>
-      <details>
-        <summary class="cap" style="cursor:pointer">手動貼上／複製 JSON（無法下載時使用）</summary>
-        <textarea class="io" id="ioText" spellcheck="false" style="margin-top:8px"></textarea>
-        <div class="row" style="margin-top:8px">
-          <button class="btn small" id="btnIoLoad" type="button">從上方文字載入</button>
-          <button class="btn small" id="btnIoDump" type="button">把目前比賽輸出到上方</button>
+      <details class="adv" id="advBox">
+        <summary>進階：音訊靈敏度、備註詢問、標註效率</summary>
+        <div class="grid" style="gap:12px;margin-top:12px">
+          <div class="row">
+            <label class="f" style="min-width:160px">音訊靈敏度<select id="sensSel"><option value="0.25">低（手機收音小）</option><option value="0.35" selected>中（一般）</option><option value="0.5">高（轉播雜音多）</option></select></label>
+            <button class="btn" id="btnReanalyze" type="button" disabled>重新分析音軌</button>
+          </div>
+          <span class="cap" id="onsetInfo">本機影片載入後自動分析音軌。拍數不準或回合切得亂，換一個靈敏度再分析。</span>
+          <label class="ck" style="display:inline-flex;align-items:center;gap:8px;font-size:13px;color:var(--pp-ink-sub);cursor:pointer"><input type="checkbox" id="askNote">我方得分後自動跳出備註欄（關閉時每顆自己贏的球少按一鍵，想寫再按 N）</label>
+          <div>
+            <h3>標註效率</h3>
+            <p class="cap" style="margin:4px 0 10px">量「一場標完要多久」用的。每分從按下 A／L 到送出的秒數與動作數，只存在這場的 JSON 裡。</p>
+            <div class="annstats" id="annStats"></div>
+          </div>
         </div>
       </details>
-      <div>
-        <h3 style="margin-top:8px">本機紀錄</h3>
-        <p class="cap" style="margin:4px 0 10px">每一場標過的比賽都留在這台電腦的瀏覽器裡（最多 60 場）。載入影片時會用檔名、大小、修改時間認出同一支影片，自動帶回紀錄；音軌分析結果也會記住。清瀏覽器資料會全部消失，重要的請匯出 JSON。</p>
-        <div class="liblist" id="libList"></div>
-      </div>
-      <div id="cloudBox" hidden>
-        <h3 style="margin-top:8px">雲端存檔</h3>
-        <p class="cap" style="margin:4px 0 10px">存在這個頁面的資料庫裡，不含影片。之後可以直接請 Claude 讀取做進一步分析。</p>
-        <div class="row" style="margin-bottom:10px"><button class="btn" id="btnCloudSave" type="button">儲存目前比賽</button></div>
-        <div class="cloudlist" id="cloudList"></div>
-      </div>
     </div>
   </div>
 
-  <div class="card" id="multiCard" style="margin-top:20px">
+  <div class="card" style="margin-top:20px">
+    <h2>本機紀錄</h2>
+    <p class="cap" style="margin:4px 0 10px">每一場標過的比賽都留在這台電腦的瀏覽器裡（最多 60 場）。載入影片時會用檔名與大小認出同一支影片，自動帶回紀錄；音軌分析結果也會記住。清瀏覽器資料會全部消失，重要的請匯出備份。</p>
+    <div class="liblist" id="libList"></div>
+  </div>
+
+  <div class="card" id="multiCard" style="margin-top:20px" hidden>
     <div class="row" style="justify-content:space-between">
       <h2>多場趨勢</h2>
-      <span class="cap">選多個匯出的比賽 JSON，看跨場變化。檔案只在這台電腦讀取，不會上傳，也不影響目前這場。</span>
+      <button class="btn small" id="btnMultiClear" type="button">清除</button>
     </div>
-    <div class="row" style="margin-top:12px">
-      <button class="btn" id="btnMulti" type="button">選擇多個比賽 JSON</button>
-      <input type="file" id="multiFile" accept="application/json,.json" multiple hidden>
-      <button class="btn small" id="btnMultiClear" type="button" hidden>清除</button>
-      <span class="cap" id="multiInfo"></span>
-    </div>
+    <p class="cap" id="multiInfo" style="margin:8px 0 0"></p>
     <div id="multiOut"></div>
   </div>
 
-  <p class="hint" style="margin:20px 0 0">頁面會自動把進行中的比賽存在這台電腦的瀏覽器裡；換裝置前請先匯出 JSON。</p>
+  <p class="hint" style="margin:20px 0 0">頁面會自動把進行中的比賽存在這台電腦的瀏覽器裡；換裝置前請先匯出備份。</p>
 </section>
 
   </div><!-- /panel-body -->
@@ -821,7 +786,6 @@ let lastVideoFile = null;      // 供重新分析音軌
 let audioJob = 0;              // 分析工作序號，載入新影片時作廢舊工作
 let autoPauseIdx = -1, prevT = 0;   // 自動暫停：上次暫停的回合序號、上一次 timeupdate 的時間
 let videoName = '';
-let downloadsNS = null, dbNS = null;
 let isSample = false;
 
 function newMatch(){
@@ -968,7 +932,7 @@ function rallyIndexAt(t){ const rl = rallies(); let idx = -1; for (let i = 0; i 
 /* 跳過回合間空檔：從回合裡自然播出去、進入空檔時，直接跳到下一段開始前 0.8s。只在「越過」那一刻觸發，手動拉進空檔不會被搶走。 */
 let prevGapT = 0, replay = null;
 function checkSkipGap(t){
-  const rl = rallies(); const on = $('skipGaps').checked;
+  const rl = rallies(); const on = $('rallyMode').checked;
   if (t < prevGapT){ prevGapT = t; return; }
   if (!on || !rl.length || exporting || replay || !P.loaded || P.paused || pending){ prevGapT = t; return; }
   for (let i = 0; i < rl.length - 1; i++){
@@ -1015,6 +979,8 @@ function pointIndexAt(rows, t){
   for (let i = 0; i < rows.length; i++){ const r = rows[i]; if (r.t_end == null) continue; if (t < r.t_end){ idx = i; break; } }   // 停在 t_end 本身＝這分已結束
   return idx;
 }
+/* 列在捲動框內容裡的 y 位置。不用 offsetTop 相減：tr 的 offsetParent 是 table，框的 offsetParent 是外層，兩者基準不同，框上方多一張卡就會算錯 */
+function rowTopIn(wrap, el){ return el.getBoundingClientRect().top - wrap.getBoundingClientRect().top + wrap.scrollTop; }
 let curIdx = -1;   // 目前播放頭所在的分（derive().rows 的索引）；-1＝在最後一分之後
 function syncToTime(t){
   if (!P.loaded) return;
@@ -1027,7 +993,7 @@ function syncToTime(t){
   const tr = idx >= 0 ? tb.querySelector(`tr[data-idx="${idx}"]`) : null;
   if (tr){
     tr.classList.add('cur');
-    const wrap = $('logwrap'), top = tr.offsetTop - wrap.offsetTop, bottom = top + tr.offsetHeight;   // 只捲逐分紀錄自己的框，不動整個面板
+    const wrap = $('logwrap'), top = rowTopIn(wrap, tr), bottom = top + tr.offsetHeight;   // 只捲逐分紀錄自己的框，不動整個面板
     if (top < wrap.scrollTop) wrap.scrollTop = Math.max(0, top - 8);
     else if (bottom > wrap.scrollTop + wrap.clientHeight) wrap.scrollTop = bottom - wrap.clientHeight + 8;
   }
@@ -1051,7 +1017,7 @@ function renderScoreBug(rows, idx){
 /* 回合結束自動暫停：播放頭越過某段回合 end＋0.8s 時暫停，只問誰得分。已記錄過的回合、目前正在輸入時不觸發。 */
 function checkAutoPause(t){
   const rl = onsets && onsets.rallies;
-  if (exporting || !rl || !rl.length || !$('autoPause').checked || !P.loaded || P.paused || pending){ prevT = t; return; }
+  if (exporting || !rl || !rl.length || !$('rallyMode').checked || !P.loaded || P.paused || pending){ prevT = t; return; }
   if (t < prevT){ prevT = t; autoPauseIdx = -1; return; }   // 往回拉，重設
   const lastT = (!isSample && match.points.length) ? (match.points[match.points.length-1].t_end ?? -1) : -1;   // 範例資料不算已記錄
   for (let i = 0; i < rl.length; i++){
@@ -1070,14 +1036,13 @@ function leaveSample(){
 }
 function afterLoad(label){
   if (isSample){ leaveSample(); toast('已清除範例資料'); }
-  $('drop').hidden = true; $('guide').hidden = false;
+  $('drop').hidden = true;
   if (!onsets) $('tlInfo').textContent = '影片就緒。紅向上＝我得分、黑向下＝對手得分、淡紅底＝關鍵分；拍數需手動輸入或匯入擊球時間戳。';
   $('tdur').textContent = fmtT(P.duration);
   window.focus(); document.body.focus?.();
   renderBoard(); drawTimeline();
   toast('已載入 ' + label + '，按 Space 播放，A／L 記分');
 }
-$('guideClose').addEventListener('click', () => { $('guide').hidden = true; });
 $('btnSwap').addEventListener('click', () => { const dz = $('drop'); dz.hidden = !dz.hidden; if (!dz.hidden && P.loaded && !P.paused) P.toggle(); });
 $('btnUndo').addEventListener('click', () => undo());
 /* -- 本機檔案 -- */
@@ -1339,7 +1304,7 @@ async function analyzeAudio(file, force){
     onsets = {...cached, cached: true}; autoPauseIdx = -1;
     info.textContent = `使用先前的分析結果：${cached.hits.length} 次擊球、${(cached.rallies||[]).length} 段回合（靈敏度 ${cached.params && cached.params.sens}）。要重算請按「重新分析音軌」。`;
     tl.textContent = `擊球聲 ${cached.hits.length} 筆、回合 ${(cached.rallies||[]).length} 段（快取）；標分時自動帶入拍數，回合結束會自動暫停`;
-    $('autoPauseWrap').hidden = !(cached.rallies||[]).length; showRallyControls(!!(cached.rallies||[]).length);
+    showRallyControls(!!(cached.rallies||[]).length);
     if (cached.params && cached.params.sens) $('sensSel').value = String(cached.params.sens);
     drawTimeline(); $('btnReanalyze').disabled = false; return;
   }
@@ -1359,7 +1324,7 @@ async function analyzeAudio(file, force){
     const secs = ((performance.now() - t0) / 1000).toFixed(1);
     info.textContent = `已分析：${hits.length} 次擊球、${rallies.length} 段回合（靈敏度 ${sens}，${secs} 秒）`;
     tl.textContent = `擊球聲 ${hits.length} 筆、回合 ${rallies.length} 段；標分時自動帶入拍數，回合結束會自動暫停`;
-    $('autoPauseWrap').hidden = !rallies.length; showRallyControls(!!rallies.length);
+    showRallyControls(!!rallies.length);
     drawTimeline(); toast(`音軌分析完成：${rallies.length} 段回合`);
     if (match.td) mergeTdIntoOnsets();
   } catch(e){
@@ -1368,15 +1333,22 @@ async function analyzeAudio(file, force){
   } finally { if (job === audioJob) $('btnReanalyze').disabled = !lastVideoFile; }
 }
 $('btnReanalyze').addEventListener('click', () => analyzeAudio(lastVideoFile, true));
-$('firstTime').addEventListener('click', e => { e.stopPropagation(); $('tab-help').click(); });
+/* 怎麼用：第一次開啟時顯示在〔標註〕最上面；之後由頁首按鈕或影片區連結叫出 */
+function showHelp(on){
+  $('helpCard').hidden = !on;
+  if (on){ $('tab-annot').click(); requestAnimationFrame(() => $('helpCard').scrollIntoView({block:'nearest'})); }
+}
+try { $('helpCard').hidden = localStorage.getItem(LS_KEY+':seenhelp') === '1'; } catch(e){ $('helpCard').hidden = false; }
+$('helpClose').addEventListener('click', () => { $('helpCard').hidden = true; try { localStorage.setItem(LS_KEY+':seenhelp', '1'); } catch(e){} });
+$('btnHelp').addEventListener('click', () => showHelp($('helpCard').hidden));
+$('firstTime').addEventListener('click', e => { e.stopPropagation(); showHelp(true); });
 $('sensSel').addEventListener('change', () => { if (lastVideoFile) analyzeAudio(lastVideoFile, true); });
-function showRallyControls(on){ ['skipGapsWrap','btnReplay','btnPrevRally','btnNextRally'].forEach(id => $(id).hidden = !on); }
-try { $('autoPause').checked = localStorage.getItem(LS_KEY+':autopause') !== '0'; } catch(e){}
-try { $('skipGaps').checked = localStorage.getItem(LS_KEY+':skipgaps') !== '0'; } catch(e){}
-$('skipGaps').addEventListener('change', () => { try { localStorage.setItem(LS_KEY+':skipgaps', $('skipGaps').checked ? '1' : '0'); } catch(e){} });
+function showRallyControls(on){ ['rallyModeWrap','btnReplay','btnPrevRally','btnNextRally'].forEach(id => $(id).hidden = !on); }
+/* 回合模式＝回合結束自動暫停＋繼續播放跳過空檔（v10 起合成一個開關；舊的 :autopause 設定沿用為初值） */
+try { const v = localStorage.getItem(LS_KEY+':rallymode'); $('rallyMode').checked = v != null ? v !== '0' : localStorage.getItem(LS_KEY+':autopause') !== '0'; } catch(e){}
+$('rallyMode').addEventListener('change', () => { try { localStorage.setItem(LS_KEY+':rallymode', $('rallyMode').checked ? '1' : '0'); } catch(e){} });
 try { $('askNote').checked = localStorage.getItem(LS_KEY+':asknote') === '1'; } catch(e){}
 $('askNote').addEventListener('change', () => { try { localStorage.setItem(LS_KEY+':asknote', $('askNote').checked ? '1' : '0'); } catch(e){} });
-$('autoPause').addEventListener('change', () => { try { localStorage.setItem(LS_KEY+':autopause', $('autoPause').checked ? '1' : '0'); } catch(e){} });
 
 /* ---------- annotation flow ---------- */
 function currentServer(){ return derive().server; }
@@ -1479,6 +1451,7 @@ function quickNoteBar(onPick){
   return bar;
 }
 function commit(){
+  setupOpen = false;
   const wasOver = derive().matchOver;
   const p = {winner:pending.winner, end_type:pending.end_type, reason:pending.reason, note:pending.note || '', rally:pending.rally ?? null, t_end:pending.t_end};
   if (pending.star) p.star = true;
@@ -1738,7 +1711,7 @@ function renderBoard(){
     if (r.t_end != null){ tr.dataset.seek = pointStart(d.rows, idx-1); tr.title='跳到這一分'; }
     tb.append(tr);
   });
-  if (curIdx >= 0){ const cur = tb.querySelector('tr.cur'); if (cur){ const wrap = $('logwrap'), top = cur.offsetTop - wrap.offsetTop; if (top < wrap.scrollTop || top + cur.offsetHeight > wrap.scrollTop + wrap.clientHeight) wrap.scrollTop = Math.max(0, top - 8); } }
+  if (curIdx >= 0){ const cur = tb.querySelector('tr.cur'); if (cur){ const wrap = $('logwrap'), top = rowTopIn(wrap, cur); if (top < wrap.scrollTop || top + cur.offsetHeight > wrap.scrollTop + wrap.clientHeight) wrap.scrollTop = Math.max(0, top - 8); } }
   $('matchTitleTop').textContent = (match.meta.title || '未命名比賽') + (isSample ? '（範例資料）' : '');
 }
 function renderAnnStats(){
@@ -2035,10 +2008,8 @@ function statsOf(m){
     crit: rows.filter(r=>r.critical), myErr: lost.filter(r=>r.end_type!=='winner'),
     rl: rows.filter(r=>r.rally!=null)};
 }
-$('btnMulti').addEventListener('click', () => $('multiFile').click());
-$('btnMultiClear').addEventListener('click', () => { multiMatches = []; $('multiInfo').textContent = ''; $('btnMultiClear').hidden = true; $('multiOut').innerHTML = ''; });
-$('multiFile').addEventListener('change', async e => {
-  const files = [...e.target.files]; e.target.value = '';
+$('btnMultiClear').addEventListener('click', () => { multiMatches = []; $('multiInfo').textContent = ''; $('multiOut').innerHTML = ''; $('multiCard').hidden = true; });
+async function loadMulti(files){
   if (!files.length) return;
   const ok = [], bad = [];
   for (const f of files){
@@ -2050,9 +2021,10 @@ $('multiFile').addEventListener('change', async e => {
   }
   multiMatches = ok.sort((a,b) => String(a.meta.date||'').localeCompare(String(b.meta.date||'')));
   $('multiInfo').textContent = `已載入 ${multiMatches.length} 場${bad.length ? `，${bad.length} 個檔案讀不到逐分資料（${bad.join('、')}）` : ''}`;
-  $('btnMultiClear').hidden = !multiMatches.length;
+  $('multiCard').hidden = false;
   renderMulti();
-});
+  requestAnimationFrame(() => $('multiCard').scrollIntoView({block:'start'}));
+}
 function renderMulti(){
   const box = $('multiOut'); box.innerHTML = '';
   if (!multiMatches.length) return;
@@ -2152,8 +2124,8 @@ async function exportHighlightVideo(){
   const rec = new MediaRecorder(cs, mime ? {mimeType: mime, videoBitsPerSecond: 8e6} : undefined);
   const chunks = []; rec.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); };
   const total = clips.reduce((s,c) => s + (c.end - c.start), 0);
-  const keep = {t: video.currentTime, rate: video.playbackRate, paused: video.paused, ap: $('autoPause').checked};
-  exporting = true; $('autoPause').checked = false; video.playbackRate = 1;
+  const keep = {t: video.currentTime, rate: video.playbackRate, paused: video.paused};
+  exporting = true; video.playbackRate = 1;   // exporting 期間自動暫停與跳空檔都不動作
   const ov = $('exportOverlay'); ov.hidden = false;
   const say = (i, c) => { ov.innerHTML = `<div class="big">輸出好球集 ${i}／${clips.length}</div><div>${fmtT(c.start)} – ${fmtT(c.end)}　共 ${clips.length} 段、約 ${Math.ceil(total)} 秒</div><div class="cap" style="color:#CFCBC3">錄製中請留在這個分頁；按 Esc 取消</div>`; $('hlStatus').textContent = `輸出中 ${i}／${clips.length}……`; };
   let cancelled = false; const onKey = e => { if (e.key === 'Escape'){ cancelled = true; } }; document.addEventListener('keydown', onKey, true);
@@ -2175,7 +2147,7 @@ async function exportHighlightVideo(){
   } catch(e){ $('hlStatus').textContent = '輸出失敗：' + (e && e.message || e); }
   finally {
     document.removeEventListener('keydown', onKey, true);
-    exporting = false; ov.hidden = true; $('autoPause').checked = keep.ap; video.playbackRate = keep.rate; video.currentTime = keep.t; if (!keep.paused) video.play().catch(()=>{});
+    exporting = false; ov.hidden = true; video.playbackRate = keep.rate; video.currentTime = keep.t; if (!keep.paused) video.play().catch(()=>{});
     renderHighlights(derive().rows);
   }
 }
@@ -2313,7 +2285,7 @@ function drawTrajectory(rows, games){
 /* ---------- tabs ---------- */
 document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => {
   document.querySelectorAll('.tab').forEach(x => x.setAttribute('aria-selected', String(x===t)));
-  ['annot','analysis','data','help'].forEach(k => $('pane-'+k).hidden = k !== t.dataset.tab);
+  ['annot','analysis','data'].forEach(k => $('pane-'+k).hidden = k !== t.dataset.tab);
   document.body.dataset.tab = t.dataset.tab;
   if (t.dataset.tab === 'analysis') renderAnalysis();
   if (t.dataset.tab === 'data') renderLib();
@@ -2343,7 +2315,7 @@ function pointStart(rows, i){
 }
 
 /* ---------- meta form ---------- */
-const metaFields = {mTitle:'title', mDate:'date', mOpp:'opponent', mBestOf:'best_of', mGameTo:'game_to', mFirstServer:'first_server', mNote:'note', mStartMe:'start_games_me', mStartOp:'start_games_op', mMode:'mode', mPartner:'partner', mOpp1:'opp1', mOpp2:'opp2', dPartner:'partner', dOpp1:'opp1', dOpp2:'opp2'};
+const metaFields = {mTitle:'title', mDate:'date', mOpp:'opponent', mBestOf:'best_of', mGameTo:'game_to', mNote:'note', dPartner:'partner', dOpp1:'opp1', dOpp2:'opp2'};
 const NUM_META = new Set(['best_of','game_to','start_games_me','start_games_op']);
 function fillMeta(){ for (const [id,k] of Object.entries(metaFields)) $(id).value = match.meta[k] ?? ''; }
 for (const [id,k] of Object.entries(metaFields)) $(id).addEventListener('input', e => {
@@ -2353,7 +2325,6 @@ for (const [id,k] of Object.entries(metaFields)) $(id).addEventListener('input',
     match.meta.title = ''; match.meta.opponent = ''; match.meta.note = ''; isSample = false; pending = null;
     toast('已清除範例資料，設定會套用到你的新比賽');
   }
-  if (k === 'mode'){ setMode(e.target.value); return; }
   match.meta[k] = NUM_META.has(k) ? Math.max(0, +e.target.value || 0) : e.target.value; clampStartGames(); save(); fillMeta(); renderAll(); });
 /* 開始前大局不能已經分出勝負 */
 function clampStartGames(){
@@ -2362,24 +2333,39 @@ function clampStartGames(){
   match.meta.start_games_me = Math.min(cap, Math.max(0, +match.meta.start_games_me || 0));
   match.meta.start_games_op = Math.min(cap, Math.max(0, +match.meta.start_games_op || 0));
 }
-/* 開始前確認卡 */
+/* 比賽設定卡：還沒記分時自動出現（開始前確認）；記了分之後由「比賽設定」按鈕叫出。
+   卡上的發球與局數一律指「影片開始的那一局」g0；還沒記分時 g0 就是目前這局。 */
+let setupOpen = false;
+function setupG0(){ const [sm, so] = startGames(); return sm + so + 1; }
+const BEST_OF_ZH = {0:'練習不限局數', 1:'單局', 3:'三戰兩勝', 5:'五戰三勝', 7:'七戰四勝'};
+function renderRulesLine(){
+  const m = match.meta, g0 = setupG0();
+  const fs = isDoubles() ? playerName(((match.doubles_order_override || {})[g0] || {}).s || m.d_first_server || 'me') : (firstServerOfGame(g0) === 'me' ? '我' : '對手');
+  $('rulesLine').textContent = `${isDoubles() ? '雙打' : '單打'}・${BEST_OF_ZH[+m.best_of] ?? (m.best_of + ' 局')}・每局 ${m.game_to} 分・影片從第 ${g0} 局開始，${fs}先發`;
+}
 function renderSetup(){
   const card = $('setupCard');
-  card.hidden = isSample || match.points.length > 0;
+  const auto = !isSample && match.points.length === 0;
+  card.hidden = !(auto || setupOpen);
+  $('btnSetup').hidden = !card.hidden;
+  renderRulesLine();
   if (card.hidden) return;
-  const d = derive(); const [sm, so] = startGames();
-  $('setupGameNo').textContent = d.game; $('sgMe').textContent = sm; $('sgOp').textContent = so;
+  $('setupTitle').textContent = auto ? '開始前確認' : '比賽設定';
+  $('setupHint').hidden = !auto; $('btnSetupDone').hidden = auto;
+  const d = derive(); const [sm, so] = startGames(); const g0 = sm + so + 1;
+  $('setupGameNo').textContent = g0; $('sgMe').textContent = sm; $('sgOp').textContent = so;
   const dbl = isDoubles();
   card.querySelectorAll('#segMode button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === (dbl ? 'doubles' : 'singles'))));
   $('dblNames').hidden = !dbl; $('dblRecvRow').hidden = !dbl;
   const seg = $('segServer');
   if (dbl){
-    const cur = d.order ? d.order.s : 'me';
+    const ov = (match.doubles_order_override || {})[g0];
+    const cur = auto ? (d.order ? d.order.s : 'me') : (ov ? ov.s : (match.meta.d_first_server || 'me'));
     seg.innerHTML = PLAYERS.map(pl => `<button type="button" data-v="${pl}" aria-pressed="${pl === cur}">${esc(playerName(pl))}</button>`).join('');
-    const rcv = $('segReceiver'); const curR = d.order ? d.order.r : 'o1';
+    const rcv = $('segReceiver'); const curR = auto ? (d.order ? d.order.r : 'o1') : (ov ? ov.r : (match.meta.d_first_receiver || 'o1'));
     rcv.innerHTML = PLAYERS.filter(pl => sideOf(pl) !== sideOf(cur)).map(pl => `<button type="button" data-v="${pl}" aria-pressed="${pl === curR}">${esc(playerName(pl))}</button>`).join('');
   } else {
-    const cur = firstServerOfGame(d.game);
+    const cur = firstServerOfGame(g0);
     if (seg.querySelectorAll('button').length !== 2) seg.innerHTML = '<button type="button" data-v="me">我</button><button type="button" data-v="op">對手</button>';
     seg.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === cur)));
   }
@@ -2391,7 +2377,8 @@ function renderSetup(){
 }
 $('segServer').addEventListener('click', e => {
   const b = e.target.closest('button[data-v]'); if (!b) return;
-  const g = derive().game;
+  if (isSample) leaveSample();
+  const g = setupG0();
   if (isDoubles()){
     match.meta.d_first_server = b.dataset.v;
     if (sideOf(match.meta.d_first_receiver || 'o1') === sideOf(b.dataset.v)) match.meta.d_first_receiver = sideOf(b.dataset.v) === 'me' ? 'o1' : 'me';
@@ -2405,7 +2392,8 @@ $('segServer').addEventListener('click', e => {
 });
 $('segReceiver').addEventListener('click', e => {
   const b = e.target.closest('button[data-v]'); if (!b) return;
-  match.meta.d_first_receiver = b.dataset.v; if (match.doubles_order_override) delete match.doubles_order_override[derive().game];
+  if (isSample) leaveSample();
+  match.meta.d_first_receiver = b.dataset.v; if (match.doubles_order_override) delete match.doubles_order_override[setupG0()];
   save(); fillMeta(); renderAll();
 });
 $('segMode').addEventListener('click', e => {
@@ -2417,7 +2405,7 @@ function setMode(mode){
   match.meta.mode = mode;
   if (mode === 'doubles'){
     // 由對的層級帶入預設：這一局哪一對先發 → 該對的第一位
-    const g = derive().game; const side = firstServerOfGame(g);
+    const g = setupG0(); const side = firstServerOfGame(g);
     if (!match.meta.d_first_server || sideOf(match.meta.d_first_server) !== side) match.meta.d_first_server = side === 'me' ? 'me' : 'o1';
     if (!match.meta.d_first_receiver || sideOf(match.meta.d_first_receiver) === side) match.meta.d_first_receiver = side === 'me' ? 'o1' : 'me';
   }
@@ -2425,11 +2413,19 @@ function setMode(mode){
 }
 $('setupCard').addEventListener('click', e => {
   const b = e.target.closest('.stepper button[data-k]'); if (!b || b.disabled) return;
-  const keepSrv = firstServerOfGame(derive().game);   // 使用者選的是「這一局」的首發；改局數後這一局的首發要維持不變
+  if (isSample) leaveSample();
+  const keepSrv = firstServerOfGame(setupG0());   // 使用者選的是「開始那一局」的首發；改局數後那一局的首發要維持不變
   match.meta[b.dataset.k] = Math.max(0, (+match.meta[b.dataset.k] || 0) + +b.dataset.d); clampStartGames();
-  const g = derive().game; match.meta.first_server = ((g - 1) % 2 === 0) ? keepSrv : other(keepSrv); delete match.game_first_server_override[g];
+  const g = setupG0(); match.meta.first_server = ((g - 1) % 2 === 0) ? keepSrv : other(keepSrv); delete match.game_first_server_override[g];
   save(); fillMeta(); renderAll();
 });
+function openSetup(){
+  $('tab-annot').click(); setupOpen = true; renderSetup();
+  requestAnimationFrame(() => $('setupCard').scrollIntoView({block:'nearest'}));
+}
+$('btnSetup').addEventListener('click', openSetup);
+$('btnRules').addEventListener('click', openSetup);
+$('btnSetupDone').addEventListener('click', () => { setupOpen = false; renderSetup(); });
 $('btnNew').addEventListener('click', () => {
   if (match.points.length && !confirm('開新比賽？目前這場會留在〔比賽資料〕的本機紀錄裡，隨時可以載回。')) return;
   newMatchKeepMeta(); if (currentFp){ match.video_fp = currentFp; match.video = videoName; } save(); fillMeta(); renderAll(); toast('已開新比賽');
@@ -2467,10 +2463,8 @@ function saveBlob(name, data, mime){
   } catch(e){ return false; }
 }
 async function offerDownload(name, data, mime){
-  if (downloadsNS){ try { await downloadsNS.save({filename:name, data}); toast('已儲存 ' + name); return true; } catch(e){ if (e && e.code === 'declined') return false; } }
   if (saveBlob(name, data, mime)){ toast('已下載 ' + name); return true; }
-  $('ioText').value = data; $('ioText').closest('details').open = true; $('ioText').focus(); $('ioText').select();
-  toast('這裡無法直接下載，已把內容放到下方文字框，請複製。');
+  toast('瀏覽器擋下了下載。請允許這個網站下載檔案後再試一次。');
   return false;
 }
 $('btnExport').addEventListener('click', async () => { if (await offerDownload(fileStem() + '.json', JSON.stringify(exportObj(), null, 2), 'application/json')) markExported(); });
@@ -2504,11 +2498,29 @@ async function copyForAI(){
   if (!match.points.length){ toast('還沒有資料可以複製'); return; }
   const payload = AI_PROMPT + '\n\n```json\n' + JSON.stringify(exportObj(), null, 1) + '\n```\n';
   try { await navigator.clipboard.writeText(payload); toast(`已複製 ${match.points.length} 分的資料，貼到 Claude 或 ChatGPT 即可`); }
-  catch(e){ $('ioText').value = payload; $('ioText').closest('details').open = true; $('ioText').focus(); $('ioText').select(); toast('瀏覽器不允許直接複製，已放到下方文字框'); }
+  catch(e){ if (await offerDownload(fileStem() + '-for-AI.txt', payload, 'text/plain')) toast('瀏覽器不允許直接複製，已改成下載文字檔'); }
 }
 $('btnCopyAI').addEventListener('click', copyForAI);
-$('btnImport').addEventListener('click', () => $('importFile').click());
-$('importFile').addEventListener('change', e => { const f = e.target.files[0]; if (!f) return; f.text().then(t => loadMatchJSON(t)).catch(() => toast('讀取失敗')); e.target.value=''; });
+/* 匯入：一顆按鈕，依內容認檔。比賽備份 → 載入這場；onsets → 擊球時間戳；tt3d match.json → 3D 分析；多個檔 → 多場趨勢 */
+function sniffJSON(o){
+  if (!o || typeof o !== 'object') return null;
+  if (Array.isArray(o.points)) return 'match';
+  if (Array.isArray(o.rallies) && (o.schema_version || o.coordinate_system || (o.rallies[0] && 'core_start_s' in o.rallies[0]))) return 'tt3d';
+  if (Array.isArray(o.hits)) return 'onsets';
+  return null;
+}
+async function importFiles(files){
+  if (!files.length) return;
+  if (files.length > 1){ await loadMulti(files); return; }
+  let o; try { o = JSON.parse(await files[0].text()); } catch(e){ toast('讀不懂這個檔案：不是 JSON'); return; }
+  const kind = sniffJSON(o);
+  if (kind === 'match') loadMatchObj(o);
+  else if (kind === 'onsets') applyOnsets(o);
+  else if (kind === 'tt3d'){ try { tdApply(o); } catch(err){ toast('無法解析 3D 分析：' + err.message); } }
+  else toast('認不出這個檔案。可以匯入比賽備份、onsets.json 或 3D 分析 match.json');
+}
+$('btnImportAny').addEventListener('click', () => $('anyFile').click());
+$('anyFile').addEventListener('change', e => { const fs = [...e.target.files]; e.target.value = ''; importFiles(fs); });
 /* schema 遷移：v1（無 mode）→ v2 視為單打；缺的欄位補預設 */
 function migrateMatch(o){
   const base = newMatch();
@@ -2518,23 +2530,24 @@ function migrateMatch(o){
   return m;
 }
 function loadMatchJSON(text){
+  let o; try { o = JSON.parse(text); } catch(err){ toast('無法解析 JSON：' + err.message); return; }
+  loadMatchObj(o);
+}
+function loadMatchObj(o){
   try {
-    const o = JSON.parse(text);
     if (!o || !Array.isArray(o.points)) throw new Error('格式不符');
     match = migrateMatch(o);
     isSample = false; pending = null; save(); fillMeta(); renderAll(); toast(`已載入 ${match.points.length} 分${match.meta.mode === 'doubles' ? '（雙打）' : ''}`);
   } catch(err){ toast('無法解析 JSON：' + err.message); }
 }
-$('btnIoLoad').addEventListener('click', () => loadMatchJSON($('ioText').value));
-$('btnIoDump').addEventListener('click', () => { $('ioText').value = JSON.stringify(exportObj(), null, 2); });
-$('btnOnsets').addEventListener('click', () => $('onsetFile').click());
-$('onsetFile').addEventListener('change', e => { const f = e.target.files[0]; if (!f) return; f.text().then(t => {
-  const o = JSON.parse(t); if (!Array.isArray(o.hits)) throw new Error('缺 hits');
+function applyOnsets(o){
+  if (!Array.isArray(o.hits)) { toast('onsets 檔缺 hits'); return; }
   onsets = o; $('onsetInfo').textContent = `已載入：${o.hits.length} 次擊球、${(o.rallies||[]).length} 段回合${o.source?'（'+o.source+'）':''}`;
   $('tlInfo').textContent = `擊球時間戳 ${o.hits.length} 筆；標分時自動帶入拍數`;
-  $('autoPauseWrap').hidden = !(o.rallies && o.rallies.length); autoPauseIdx = -1; showRallyControls(!!(o.rallies && o.rallies.length));
+  autoPauseIdx = -1; showRallyControls(!!(o.rallies && o.rallies.length));
+  if (match.td) mergeTdIntoOnsets();
   drawTimeline(); toast('已載入擊球時間戳');
-}).catch(err => toast('無法解析：' + err.message)); e.target.value=''; });
+}
 
 /* ---------- 3D 分析（tt3d match.json）匯入 ---------- */
 const TD_CONF_MIN = 0.3;
@@ -2565,7 +2578,7 @@ function mergeTdIntoOnsets(){
     out.sort((a,b) => a.start - b.start);
     onsets = {...onsets, rallies: out, merged_td: true};
   }
-  autoPauseIdx = -1; $('autoPauseWrap').hidden = !(onsets.rallies && onsets.rallies.length); showRallyControls(!!(onsets.rallies && onsets.rallies.length));
+  autoPauseIdx = -1; showRallyControls(!!(onsets.rallies && onsets.rallies.length));
   drawTimeline();
 }
 function tdApply(o){
@@ -2578,8 +2591,6 @@ function renderTdBox(){
   $('tdInfo').textContent = `${td.source || '（未知影片）'}　${td.fps} fps　${td.rallies.length} 段回合、${nb} 個落點` + (q.camera_interpolated_ratio != null ? `　相機內插 ${Math.round(q.camera_interpolated_ratio*100)}%` : '') + (q.ball_3d_frames != null ? `　3D 球位 ${q.ball_3d_frames} 幀` : '');
   box.querySelectorAll('#segTdP1 button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === (td.players.P1 || 'me'))));
 }
-$('btnTd').addEventListener('click', () => $('tdFile').click());
-$('tdFile').addEventListener('change', e => { const f = e.target.files[0]; if (!f) return; f.text().then(t => tdApply(JSON.parse(t))).catch(err => toast('無法解析 match.json：' + err.message)); e.target.value = ''; });
 $('btnTdClear').addEventListener('click', () => { delete match.td; if (onsets && onsets.rallies){ onsets.rallies = onsets.rallies.filter(r => r.src !== 'video').map(r => { const o = {...r}; delete o.src; return o; }); if (onsets.engine === 'tt3d') onsets = null; } save(); renderTdBox(); drawTimeline(); renderAll(); toast('已移除 3D 分析'); });
 $('segTdP1').addEventListener('click', e => { const b = e.target.closest('button[data-v]'); if (!b || !match.td) return; match.td.players.P1 = b.dataset.v; save(); renderTdBox(); renderAll(); });
 /* 每一分對應哪段 3D 回合：t_end 落在 [start−0.5, end+1.5] 內；多分對到同一段時取最近的 */
@@ -2752,40 +2763,8 @@ function loadSample(){
   match.points = pts; isSample = true;
 }
 
-/* ---------- cloud (db capability) ---------- */
-async function initCloud(){
-  if (!window.claude || typeof window.claude.use !== 'function') return;
-  try { downloadsNS = await window.claude.use('downloads'); } catch(e){}
-  try { dbNS = await window.claude.use('db'); } catch(e){}
-  if (!dbNS) return;
-  $('cloudBox').hidden = false;
-  $('btnCloudSave').addEventListener('click', async () => {
-    try {
-      const d = derive();
-      await dbNS.doc('matches/' + match.id).set({...exportObj(), points_count:match.points.length, games:`${d.gm}-${d.go}`, updated_at:new Date().toISOString()});
-      toast('已儲存到雲端'); listCloud();
-    } catch(e){ toast('雲端儲存失敗：' + (e && e.code || e)); }
-  });
-  listCloud();
-}
-async function listCloud(){
-  const box = $('cloudList'); box.innerHTML = '';
-  try {
-    const snap = await dbNS.collection('matches').orderBy('updated_at','desc').limit(50).get();
-    if (snap.empty){ box.innerHTML = '<span class="cap">尚無雲端存檔。</span>'; return; }
-    snap.docs.forEach(doc => { const m = doc.data();
-      const it = document.createElement('div'); it.className='it';
-      it.innerHTML = `<span class="t"></span><span class="mono cap"></span><button class="btn small" type="button">載入</button><button class="btn small" type="button">刪除</button>`;
-      it.children[0].textContent = `${m.meta?.date||''}　${m.meta?.title||'未命名'}　${m.meta?.opponent||''}`;
-      it.children[1].textContent = `${m.points_count??(m.points||[]).length} 分 ${m.games||''}`;
-      it.children[2].addEventListener('click', () => { if (match.points.length && !isSample && !confirm('以雲端版本取代目前紀錄？')) return; loadMatchJSON(JSON.stringify(m)); });
-      it.children[3].addEventListener('click', async () => { if (!confirm('刪除這筆雲端存檔？')) return; try { await dbNS.doc('matches/'+doc.id).delete(); listCloud(); } catch(e){ toast('刪除失敗'); } });
-      box.append(it); });
-  } catch(e){ box.innerHTML = '<span class="cap">無法讀取雲端存檔。</span>'; }
-}
-
 /* ---------- 測試用除錯鉤子（唯讀） ---------- */
-window.ttDebug = () => ({onsets, pending, match, isSample, autoPauseIdx, prevT, loaded: P.loaded, paused: P.paused, autoPause: $('autoPause').checked, derived: derive(), replay, skipGaps: $('skipGaps').checked, askNote: $('askNote').checked});
+window.ttDebug = () => ({onsets, pending, match, isSample, autoPauseIdx, prevT, loaded: P.loaded, paused: P.paused, rallyMode: $('rallyMode').checked, derived: derive(), replay, askNote: $('askNote').checked});
 window.ttSetMode = setMode;
 window.ttLib = () => ({lib: libRead(), currentFp, onsetsCache: (() => { try { return Object.keys(JSON.parse(localStorage.getItem(ONSETS_KEY)||'{}')); } catch(e){ return []; } })()});
 window.ttTdApply = tdApply;
@@ -2796,7 +2775,6 @@ if (!restore()) loadSample();
 document.body.dataset.tab = 'annot';
 fillMeta(); renderAll(); updateKb();
 try { const tab = localStorage.getItem(LS_KEY+':tab'); if (tab && tab !== 'annot') document.querySelector(`.tab[data-tab="${tab}"]`)?.click(); } catch(e){}
-initCloud();
 })();
 </script>
 
